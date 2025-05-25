@@ -1,32 +1,32 @@
-# MintUtils.js - สรุปความหมายแต่ละตัว
+# MintUtils.js - Summary of each meaning
 
-- **pipe**  
-  รับฟังก์ชันหลายตัว เรียกทีละตัวจากซ้ายไปขวา ส่งค่าต่อกันเหมือนสายพาน
+- **pipe**
+Receive multiple functions, call them one by one from left to right, pass values ​​together like a conveyor belt
 
-- **compose**  
-  รับฟังก์ชันหลายตัว เรียกทีละตัวจากขวาไปซ้าย ส่งค่าต่อกันเหมือน pipe แต่ย้อนลำดับ
+- **compose**
+Receive multiple functions, call them one by one from right to left, pass values ​​together like a pipe but in reverse order
 
-- **createState**  
-  สร้างตัวแปร state ที่เปลี่ยนค่าได้ มีฟังก์ชัน get/set/subscribe สำหรับอ่าน, เปลี่ยนค่า, และแจ้งเตือนเมื่อ state เปลี่ยน
+- **createState**
+Create a state variable that can change values, with get/set/subscribe functions for reading, changing values, and notifying when the state changes
 
-- **generateCSS**  
-  ฟังก์ชันเปล่า ส่งคืน string ว่าง ใช้เป็น placeholder
+- **generateCSS**
+Empty function, returns an empty string, used as a placeholder
 
 ---
 
-## แบบย่อ (ชื่อฟังก์ชัน/ตัวแปร)
+## Short form (function/variable name)
 
-- **g**  
-  ย่อมาจาก get ใช้สำหรับอ่านค่า state
+- **g**
+Short for get, used for reading state values
 
-- **s**  
-  ย่อมาจาก set ใช้สำหรับเปลี่ยนค่า state
+- **s**
+Short for set, used for changing state values
 
-- **u**  
-  ย่อมาจาก subscribe ใช้สำหรับสมัคร callback เมื่อ state เปลี่ยน
+- **u**
+Short for subscribe, used for applying a callback when the state changes
 
-- **pipe**  
-  ฟังก์ชันสำหรับต่อฟังก์ชันหลายตัวจากซ้ายไปขวา
+- **pipe**
+Function for connecting multiple functions from left to right
 
-- **compose**  
-  ฟังก์ชันสำหรับต่อฟังก์ชันหลายตัวจากขวาไปซ้าย
+- **compose**
+Function for connecting multiple functions from right to left
