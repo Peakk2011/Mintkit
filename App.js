@@ -1,4 +1,5 @@
-import { createState } from './lib/MintUtils.js';
+// import { createState } from './lib/MintUtils.js';
+import { createState } from 'https://cdn.jsdelivr.net/gh/Peakk2011/Mint_NextgenJS@main/lib/MintUtils.js';
 
 // Custom CSS
 // Throw string in CSS, no mandatory name, no special binding with injectCSS
