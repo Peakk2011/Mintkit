@@ -29,6 +29,6 @@ export const Mint = {
 
 #### Running Mintkit.js
 
-Open current path on your folder
+Open ./ExecuteMintkit/
 Than open command prompt than run ./WebExecute.exe
 And goto web browser than type this http:/localhost:3000
