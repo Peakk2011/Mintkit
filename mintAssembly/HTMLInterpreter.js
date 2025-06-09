@@ -1,4 +1,4 @@
-export const executeMintAssembly = () => {
+export function MintAssembly() {
     const HEAP_SIZE = 65536;
     const STACK_SIZE = 8192;
     const REG_COUNT = 8;
@@ -267,7 +267,7 @@ export const executeMintAssembly = () => {
         }
     }
 
-    function _executeBytecode() {
+    function executeMintAssembly() {
         pc = 0;
         sp = 0;
 
@@ -407,28 +407,24 @@ export const executeMintAssembly = () => {
     }
 
     console.time("MintAssembly Compilation");
+
     if (!compileToMachineCode()) {
         console.error("MintAssembly: Compilation failed");
-        return {
-            RUN: () => console.error("MintAssembly: Cannot run due to compilation failure.")
-        };
+        return;
     }
+
     console.timeEnd("MintAssembly Compilation");
     console.log(`MintAssembly: Generated ${codeSize} bytes of bytecode`);
 
     cacheElements();
     optimizeBytecode();
 
-    return {
-        RUN: () => {
-            console.time("MintAssembly Execution");
-            _executeBytecode();
-            console.timeEnd("MintAssembly Execution");
-            console.log("MintAssembly States:", {
-                registers: Array.from(regs),
-                stackPointer: sp,
-                programCounter: pc
-            });
-        }
-    };
-};
+    console.time("MintAssembly Execution");
+    executeMintAssembly();
+    console.timeEnd("MintAssembly Execution");
+    console.log("MintAssembly States:", {
+        registers: Array.from(regs),
+        stackPointer: sp,
+        programCounter: pc
+    });
+}

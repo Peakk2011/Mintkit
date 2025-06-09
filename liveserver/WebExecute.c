@@ -588,7 +588,9 @@ int main() {
 /*  
     Compile using:
     gcc -O2 WebExecute.c -o WebExecute.exe -lws2_32
-    
+    If compile to assembly | GCC | NASM
+    gcc -S -O2 WebExecute.c -o WebExecute.s -lws2_32
+    gcc -S -masm=intel -O2 WebExecute.c -o WebExecute.asm -lws2_32
     Then open http://localhost:3000
     
     Features:

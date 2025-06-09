@@ -39,6 +39,10 @@ export const WebElements = {
             boxSizing: 'border-box',
         },
     },
+    DirectThemes: [
+        '(prefers-color-scheme: dark)',
+        '(prefers-color-scheme: light)'
+    ],
     get BorderRadius() {
         return {
             FullyRounded: `100${this.Units.CSSSize.RelativeLengths.RelativeVMAX};`,
@@ -76,24 +80,67 @@ export const WebElements = {
     }
 }
 
+const lightThemeColors = {
+    ColorPrimary: '#FFFFFF;',
+    TextColorPrimaryDisplay: '#080707;',
+    TextColorPrimaryText: '#333333;',
+    HighlightPrimary: '#ffe9e9;',
+};
+
+const darkThemeColors = {
+    ColorPrimary: '#000000;',
+    TextColorPrimaryDisplay: '#FFD9D9;',
+    TextColorPrimaryText: '#d0bec1;',
+    HighlightPrimary: '#413c3c;',
+};
+
 export const WebContent = {
     // สร้าง cache css สำหรับ preload หน้าเว็บใว้
     // สร้าง PageTitle สำหรับชื่อเว็บ
     _cachedCSS: null,
     PageTitle: 'MintKit',
+    // Sync ธีม
+    CSScolor: {},
+    _themeChangeCallback: null,
+
+    setThemeChangeCallback(callback) {
+        this._themeChangeCallback = callback;
+    },
+
+    _updateCurrentColors(isDarkMode) {
+        const themeToApply = isDarkMode ? darkThemeColors : lightThemeColors;
+        Object.keys(themeToApply).forEach(key => {
+            this.CSScolor[key] = themeToApply[key];
+        });
+        this._cachedCSS = null;
+    },
+
+    initThemeSystem() {
+        if (typeof window !== 'undefined' && window.matchMedia) {
+            const darkModeMatcher = window.matchMedia('(prefers-color-scheme: dark)');
+            const applyTheme = (isDark) => {
+                this._updateCurrentColors(isDark);
+                if (typeof this._themeChangeCallback === 'function') this._themeChangeCallback();
+            };
+            applyTheme(darkModeMatcher.matches);
+            darkModeMatcher.addEventListener('change', e => applyTheme(e.matches));
+        } else {
+            this._updateCurrentColors(true);
+        }
+    },
 
     HTMLContent: {
         Name: 'MintKit',
-        PathFile: './lib/content.js',
+        PathFile: './content.js',
         Introduce() {
             return `
                 <div class="IntroduceContent">
                     <img src="/assists/MintLogoPage.svg" alt="Mintkit MintLogo MintTeamsLogo">
                     <h1>
-                        Hello this is, <strong>${this.Name}</strong> <br>
+                        This is, <strong>${this.Name}</strong> <br>
                         Framework that make you <br>
-                        Adjust content on<br>
-                        Your webpage more dynamic.
+                        Adjust content your<br>
+                        Webpage more dynamic.
                     </h1>
                     <p>Edit <code>${this.PathFile}</code> to see chenges</p>
                 </div>
@@ -134,7 +181,7 @@ export const WebContent = {
         },
         // Interface preset example
         get KeyframeIntroduceAnim() {
-            const animationName = 'IntroduceAnimation'; 
+            const animationName = 'IntroduceAnimation';
             return `
             @keyframes ${animationName} {
                 0% {
@@ -194,14 +241,6 @@ export const WebContent = {
         `,
     },
 
-    // จัดการสีของหน้าเว็บ สามารถดึงค่าในนี้มาใส่ได้เลย
-    CSScolor: {
-        ColorPrimary: '#0D0D0D;',
-        TextColorPrimaryDisplay: '#f9e3e7;',
-        TextColorPrimaryText: '#b8a8ab;',
-        HighlightPrimary: '#413c3c',
-    },
-
     // เราสามารถคัดลองอีกไปวางใน main ตาม layout ที่เราต้องการว่าจะมีเท่าใหร่
     ElementComponents() {
         return `
@@ -228,7 +267,7 @@ export const WebContent = {
 
             body {
                 font-family: ${DefaultFontsfallback};
-                background-color: ${this.CSScolor.ColorPrimary};
+                background-color: ${this?.CSScolor?.ColorPrimary || '#000000'};
             }
 
             .IntroduceContent {
@@ -274,12 +313,20 @@ export const WebContent = {
                 font-family: ${WebElements.Typeface[4]};
                 font-weight: 650;
             }
+            
+            @media ${WebElements.DirectThemes[1]} {
+                .IntroduceContent img {
+                    filter: invert(100%);
+                }
+            }
 
             ${this.TextRendering.SpecificTargetingRendering}; // Apply specific text rendering
-            ${this.StaticCSSvalues.KeyframeIntroduceAnim}; // Include the keyframes definition
+            ${this.StaticCSSvalues.KeyframeIntroduceAnim};    // Include the keyframes definition
         `;
         this._cachedCSS = GlobalCSS;
         return GlobalCSS;
     }
 
-}
+};
+
+WebContent.initThemeSystem(); // Initialize the theme system
