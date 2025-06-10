@@ -1,38 +1,62 @@
-(function() {
-    let isReloading = false;
-    let lastTimestamp = 0;
-    let stats = { requests: 0, errors: 0 };
+(()=>{
+    let isReloading=false,lastTimestamp=0,stats={requests:0,errors:0};
     
-    const checkForUpdates = async () => {
-        if (isReloading) return;
+    const controller=new AbortController();
+    const signal=controller.signal;
+    
+    const checkForUpdates=async()=>{
+        if(isReloading)return;
         
-        const startTime = performance.now();
-        try {
+        const startTime=performance.now();
+        try{
             stats.requests++;
-            const response = await fetch('/reload');
-            const data = await response.json();
+            const response=await fetch('/reload',{
+                signal,
+                method:'GET',
+                headers:{'Cache-Control':'no-cache'},
+                keepalive:true
+            });
             
-            if (data.reload && data.timestamp !== lastTimestamp) {
-                isReloading = true;
-                console.log('File changed, reloading... (Memory: ' + data.memory_usage + ' bytes)');
-                setTimeout(() => location.reload(), 100);
+            if(!response.ok)throw new Error(`HTTP ${response.status}`);
+            
+            const data=await response.json();
+            
+            if(data.reload&&data.timestamp!==lastTimestamp){
+                isReloading=true;
+                console.log('File changed, reloading... (Memory: '+data.memory_usage+' bytes)');
+                controller.abort();
+                requestAnimationFrame(()=>location.reload());
+                return;
             }
-            lastTimestamp = data.timestamp;
-        } catch (error) {
-            stats.errors++;
-            console.log('Live reload check failed:', error);
+            lastTimestamp=data.timestamp;
+        }catch(error){
+            if(error.name!=='AbortError'){
+                stats.errors++;
+                console.log('Live reload check failed:',error);
+            }
         }
         
-        const endTime = performance.now();
-        if (stats.requests % 10 === 0) {
-            // console.log(`Stats: ${stats.requests} requests, ${stats.errors} errors, last check: ${(endTime - startTime).toFixed(2)}ms`);
+        if(stats.requests%10===0){
+            const endTime=performance.now();
+            // console.log(`Stats: ${stats.requests} requests, ${stats.errors} errors, last check: ${(endTime-startTime).toFixed(2)}ms`);
         }
     };
     
-    const interval = setInterval(checkForUpdates, 500);
+    const interval=setInterval(checkForUpdates,500);
     console.log('Live reload enabled with performance monitoring');
     
-    window.addEventListener('beforeunload', () => {
+    const cleanup=()=>{
         clearInterval(interval);
+        controller.abort();
+    };
+    
+    window.addEventListener('beforeunload',cleanup,{once:true});
+    window.addEventListener('pagehide',cleanup,{once:true});
+    document.addEventListener('visibilitychange',()=>{
+        if(document.hidden){
+            clearInterval(interval);
+        }else if(!isReloading){
+            setInterval(checkForUpdates,500);
+        }
     });
 })();

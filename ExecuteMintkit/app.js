@@ -2,106 +2,125 @@ import { Mint } from './lib/mint.js';
 import { Webfunctions } from './EventHandle.js';
 import { WebContent, WebElements } from './Content.js';
 
-const APP_CONFIG = {
-    TARGET_ELEMENT: '#app',
-    MAIN_CONTAINER_ID: 'ROOT'
+const ROOT = '#app';
+const MAIN_CONTAINER_ID = 'ROOT';
+const MAIN_STYLESHEET_ID = 'main-dynamic-stylesheet';
+const FONT_STYLESHEET_ID = 'fonts-stylesheet';
+
+const SetHTMLtitle = `<title>${WebContent.PageTitle}</title>`;
+const CONTAINER_ROOT = `<div id="${MAIN_CONTAINER_ID}">`;
+const CONTAINER_CLOSE = '</div>';
+
+const cache = {
+    head: document.head,
+    target: null,
+    mainStyle: null,
+    fontStyle: null,
+    css: null,
+    cssValid: false,
+    html: null,
+    htmlValid: false,
+    componentsValid: false,
+    components: {
+        comp1: null,
+        comp2: null,
+    }
 };
 
-const MAIN_STYLESHEET_ID = 'main-dynamic-stylesheet';
-const SetHTMLtitle = `<title>${WebContent.PageTitle}</title>`;
+cache.target = document.querySelector(ROOT);
 
-// Function to gen CSS content
 const generateMainStylesheet = () => {
-    return WebContent.StyledElementComponents();
+    if (!cache.cssValid) {
+        cache.css = WebContent.StyledElementComponents();
+        cache.cssValid = true;
+    }
+    return cache.css;
+};
+
+// Page import
+const getCachedComponents = () => {
+    if (!cache.componentsValid) {
+        cache.components.comp1 = WebContent.ElementComponents();
+        cache.components.comp2 = WebContent.ElementComponents2();
+        cache.componentsValid = true;
+    }
+    return cache.components.comp1 + cache.components.comp2;
 };
 
 const Main = Mint.createState({});
 
+// logger about error log about ...
 const Logger = {
-    error: (...args) => console.error('[MintKit Error]', ...args),
-    info: (...args) => console.info('[MintKit]', ...args),
-    warn: (...args) => console.warn('[MintKit Warn]', ...args),
+    error: console.error.bind(console, '[Mintkit Error]'),
+    info: console.info.bind(console, '[Mintkit]'),
+    warn: console.warn.bind(console, '[Mintkit Warn]')
 };
 
-const UIRenderer = {
-    lastRenderedHTML: null,
-    shouldRender: function(newHTML) {
-        const render = newHTML !== this.lastRenderedHTML;
-        if (render) {
-            this.lastRenderedHTML = newHTML;
+let renderQueued = false;
+let lastHTML = '';
+
+const queueRender = () => {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => {
+        const html = CONTAINER_ROOT + getCachedComponents() + CONTAINER_CLOSE;
+
+        if (html !== lastHTML) {
+            lastHTML = html;
+            Mint.injectHTML(ROOT, html);
+            Mint.MintAssembly?.();
         }
-        return render;
-    },
+        renderQueued = false;
+    });
 };
 
-Main.subscribe(state => {
-    try {
-        const html = `
-            <div id="${APP_CONFIG.MAIN_CONTAINER_ID}">
-                ${WebContent.ElementComponents()}
-                ${WebContent.ElementComponents2()}
-            </div>
-        `;
-        if (UIRenderer.shouldRender(html)) {
-            Mint.injectHTML(APP_CONFIG.TARGET_ELEMENT, html);
-            if (typeof Mint.MintAssembly === 'function') {
-                Mint.MintAssembly();
-            }
-        }
-    } catch (error) {
-        Logger.error('Rendering UI Error:', error);
-    }
-});
+Main.subscribe(queueRender);
 
 const InitialMintkit = () => {
-    try {
-        // Inject fonts
-        if (WebElements.StoredFontFamily) {
-            const fontStyleElId = 'fonts-stylesheet';
-            if (!document.getElementById(fontStyleElId)) {
-                const fontStyleEl = document.createElement('style');
-                fontStyleEl.id = fontStyleElId;
-                fontStyleEl.textContent = WebElements.StoredFontFamily;
-                document.head.appendChild(fontStyleEl);
-            }
-        }
+    // Font injection
+    if (WebElements.StoredFontFamily && !cache.fontStyle) {
+        cache.fontStyle = document.createElement('style');
+        cache.fontStyle.id = FONT_STYLESHEET_ID;
+        cache.fontStyle.textContent = WebElements.StoredFontFamily;
+        cache.head.appendChild(cache.fontStyle);
+    }
 
-        let mainStyleEl = document.getElementById(MAIN_STYLESHEET_ID);
-        if (!mainStyleEl) {
-            mainStyleEl = document.createElement('style');
-            mainStyleEl.id = MAIN_STYLESHEET_ID;
-            document.head.appendChild(mainStyleEl);
-        }
-        mainStyleEl.textContent = generateMainStylesheet();
+    // Main stylesheet creation
+    if (!cache.mainStyle) {
+        cache.mainStyle = document.createElement('style');
+        cache.mainStyle.id = MAIN_STYLESHEET_ID;
+        cache.head.appendChild(cache.mainStyle);
+    }
 
-        Mint.injectTitle(SetHTMLtitle);
-        Main.set(currentState => ({ ...currentState }));
-        
-        WebContent.setThemeChangeCallback(() => {
-            if (mainStyleEl) mainStyleEl.textContent = generateMainStylesheet();
-            Main.set(s => ({ ...s, _themeUpdate: Date.now() })); 
-        });
+    // Stylesheet content
+    cache.mainStyle.textContent = generateMainStylesheet();
 
-        Logger.info('Mintkit initialized');
-    } catch (error) { Logger.error('InitialMintkit Error:', error); }
+    Mint.injectTitle(SetHTMLtitle);
+
+    WebContent.setThemeChangeCallback(() => {
+        cache.cssValid = false;
+        cache.componentsValid = false;
+        cache.mainStyle.textContent = generateMainStylesheet();
+        Main.set(s => ({ ...s, _t: Date.now() }));
+    });
+
+    Main.set({});
+    Logger.info('Mintkit initialized');
 };
 
 const startMintkit = () => {
-    try {
-        if (typeof Mint.AdjustHook === 'function') {
-            Mint.AdjustHook();
-        }
-        InitialMintkit();
-        if (typeof Webfunctions === 'function') {
-            Webfunctions(Main);
-        } else {
-            Logger.warn('Webfunctions Missing');
-        }
-    } catch (error) { Logger.error('startMintkit Error:', error); }
+    Mint.AdjustHook?.();
+    InitialMintkit();
+
+    if (Webfunctions) {
+        Webfunctions(Main);
+    }
 };
 
-if (typeof window !== 'undefined') {
+if (document.readyState === 'complete') {
     startMintkit();
+} else if (document.readyState === 'interactive') {
+    setTimeout(startMintkit, 0);
 } else {
-    Logger.error('Mintkit requires a browser environment to run.');
+    document.addEventListener('DOMContentLoaded', startMintkit, { once: true });
 }

@@ -1,9 +1,8 @@
-// Enhanced functional utilities with better performance
+// functional utilities
 export const pipe = function () {
     const a = arguments;
     const len = a.length;
     
-    // Validate all arguments are functions
     for (let i = 0; i < len; i++) {
         if (typeof a[i] !== 'function') {
             throw new TypeError(`pipe: Argument at index ${i} is not a function`);
@@ -28,7 +27,6 @@ export const compose = function () {
     const a = arguments;
     const len = a.length;
     
-    // Validate all arguments are functions
     for (let i = 0; i < len; i++) {
         if (typeof a[i] !== 'function') {
             throw new TypeError(`compose: Argument at index ${i} is not a function`);
@@ -49,14 +47,12 @@ export const compose = function () {
     };
 };
 
-// Enhanced Virtual DOM utilities
 function createElement(tag, props, ...children) {
     // Input validation
     if (!tag || typeof tag !== 'string') {
         throw new Error('createElement: tag must be a non-empty string');
     }
     
-    // Flatten children and filter out null/undefined values
     const flatChildren = children.flat(Infinity).filter(child => 
         child !== null && child !== undefined && child !== false
     );
@@ -77,7 +73,6 @@ function isSameNodeType(a, b) {
         return typeof b === 'string' || typeof b === 'number';
     }
     
-    // Handle element nodes with key support
     return a.tag === b.tag && a.key === b.key;
 }
 
@@ -90,17 +85,14 @@ function updateProps($el, oldProps, newProps) {
     oldProps = oldProps || {};
     newProps = newProps || {};
 
-    // Remove old props that are not in new props
     Object.keys(oldProps).forEach(key => {
         if (!(key in newProps)) {
             if (key.startsWith('on')) {
-                // Remove event listener
                 const eventName = key.slice(2).toLowerCase();
                 $el.removeEventListener(eventName, oldProps[key]);
             } else if (key === 'className') {
                 $el.className = '';
             } else if (key === 'style' && typeof oldProps[key] === 'object') {
-                // Clear style object
                 Object.keys(oldProps[key]).forEach(styleProp => {
                     $el.style[styleProp] = '';
                 });
@@ -110,14 +102,12 @@ function updateProps($el, oldProps, newProps) {
         }
     });
 
-    // Set new props
     Object.keys(newProps).forEach(key => {
         const oldValue = oldProps[key];
         const newValue = newProps[key];
         
         if (oldValue !== newValue && key !== 'key') {
             if (key.startsWith('on') && typeof newValue === 'function') {
-                // Handle event listeners properly
                 const eventName = key.slice(2).toLowerCase();
                 if (oldValue) {
                     $el.removeEventListener(eventName, oldValue);
@@ -192,13 +182,11 @@ function diff($parent, newVNode, oldVNode, index = 0) {
     
     try {
         if (!oldVNode) {
-            // Add new node
             const newNode = createDomNode(newVNode);
             if (newNode) {
                 $parent.appendChild(newNode);
             }
         } else if (!newVNode) {
-            // Remove old node
             const childToRemove = $parent.childNodes[index];
             if (childToRemove) {
                 $parent.removeChild(childToRemove);
@@ -207,19 +195,16 @@ function diff($parent, newVNode, oldVNode, index = 0) {
             (typeof newVNode === 'string' && newVNode !== oldVNode) ||
             (typeof newVNode === 'number' && newVNode !== oldVNode) ||
             !isSameNodeType(newVNode, oldVNode)) {
-            // Replace node
             const newNode = createDomNode(newVNode);
             const oldNode = $parent.childNodes[index];
             if (newNode && oldNode) {
                 $parent.replaceChild(newNode, oldNode);
             }
         } else if (newVNode.tag) {
-            // Update existing node
             const currentNode = $parent.childNodes[index];
             if (currentNode) {
                 updateProps(currentNode, oldVNode.props, newVNode.props);
                 
-                // Diff children
                 const newLen = newVNode.children ? newVNode.children.length : 0;
                 const oldLen = oldVNode.children ? oldVNode.children.length : 0;
                 const maxLen = Math.max(newLen, oldLen);
@@ -239,7 +224,6 @@ function diff($parent, newVNode, oldVNode, index = 0) {
     }
 }
 
-// Enhanced state management with better performance and features
 export function createState(v) {
     let s = v;
     let c = [];
@@ -248,15 +232,12 @@ export function createState(v) {
     let isUpdating = false;
     let updateQueue = [];
     
-    // Batch updates to prevent rapid re-renders
     const flushUpdates = () => {
         if (isUpdating) return;
         
         isUpdating = true;
         
-        // Process all queued updates
         try {
-            // Notify all subscribers
             const currentState = s;
             for (let i = 0, l = c.length; i < l; i++) {
                 if (typeof c[i] === 'function') {
@@ -268,7 +249,6 @@ export function createState(v) {
                 }
             }
             
-            // Handle automatic DOM updates
             if (root && oldVNode !== null && s && typeof s === 'object' && s.vdom) {
                 try {
                     diff(root, s.vdom, oldVNode);
@@ -280,7 +260,6 @@ export function createState(v) {
         } finally {
             isUpdating = false;
             
-            // Process any updates that were queued during this update
             if (updateQueue.length > 0) {
                 const nextUpdate = updateQueue.shift();
                 if (nextUpdate) {
@@ -299,18 +278,15 @@ export function createState(v) {
         set: function (n) {
             const newState = typeof n === "function" ? n(s) : n;
             
-            // Prevent unnecessary updates
             if (newState === s) return;
             
             if (isUpdating) {
-                // Queue the update if we're currently updating
                 updateQueue.push(newState);
                 return;
             }
             
             s = newState;
             
-            // Schedule update on next tick to batch multiple synchronous updates
             setTimeout(flushUpdates, 0);
         },
         
@@ -318,7 +294,6 @@ export function createState(v) {
             if (typeof f === "function") {
                 c.push(f);
                 
-                // Return unsubscribe function
                 return () => {
                     const index = c.indexOf(f);
                     if (index > -1) {
@@ -344,10 +319,8 @@ export function createState(v) {
             }
         },
         
-        // Enhanced createElement with validation
         createElement: createElement,
         
-        // Add utility methods
         getSubscriberCount: () => c.length,
         hasSubscribers: () => c.length > 0,
         clear: () => {
@@ -359,7 +332,6 @@ export function createState(v) {
     };
 }
 
-// Enhanced CSS injection with duplicate prevention
 export function injectCSS(cssString) {
     if (!cssString || typeof cssString !== 'string') {
         console.warn('injectCSS: Invalid CSS string provided');
@@ -367,7 +339,6 @@ export function injectCSS(cssString) {
     }
     
     try {
-        // Create hash to prevent duplicate injection
         const cssHash = btoa(cssString).slice(0, 10);
         const existingStyle = document.querySelector(`style[data-css-hash="${cssHash}"]`);
         
@@ -389,7 +360,6 @@ export function injectCSS(cssString) {
     }
 }
 
-// Enhanced HTML injection with better error handling
 export function injectHTML(targetSelector, htmlString) {
     if (!targetSelector || typeof targetSelector !== 'string') {
         throw new Error('injectHTML: targetSelector must be a non-empty string');
@@ -405,7 +375,6 @@ export function injectHTML(targetSelector, htmlString) {
             throw new Error(`injectHTML: No element matches selector: ${targetSelector}`);
         }
         
-        // Sanitize HTML if needed (basic check)
         if (typeof htmlString === 'string' && htmlString.includes('<script')) {
             console.warn('injectHTML: Script tags detected in HTML string');
         }
@@ -418,7 +387,6 @@ export function injectHTML(targetSelector, htmlString) {
     }
 }
 
-// Enhanced title injection with better validation
 export function injectTitle(titleHtmlString) {
     if (!titleHtmlString || typeof titleHtmlString !== 'string') {
         console.warn('injectTitle: Invalid title string provided');
@@ -428,18 +396,15 @@ export function injectTitle(titleHtmlString) {
     try {
         let head = document.head;
         if (!head) {
-            // Create head if it doesn't exist
             head = document.createElement('head');
             document.documentElement.appendChild(head);
         }
 
-        // Remove existing title
         const existingTitle = head.querySelector('title');
         if (existingTitle) {
             existingTitle.remove();
         }
 
-        // Clean and validate title HTML
         const cleanTitle = titleHtmlString.trim();
         if (!cleanTitle.startsWith('<title>') || !cleanTitle.endsWith('</title>')) {
             console.warn('injectTitle: Title string should be wrapped in <title> tags');
@@ -521,16 +486,10 @@ export const AdjustHook = (options = {}) => {
     };
 };
 
-// Export additional utilities
 export const MintUtils = {
-    // DOM utilities
     isElement: (el) => el instanceof Element,
     isTextNode: (node) => node instanceof Text,
-    
-    // VDOM utilities  
     isVNode: (obj) => obj && typeof obj === 'object' && 'tag' in obj,
-    
-    // Performance utilities
     debounce: (func, wait) => {
         let timeout;
         return function executedFunction(...args) {
@@ -542,8 +501,6 @@ export const MintUtils = {
             timeout = setTimeout(later, wait);
         };
     },
-    
-    // State utilities
     deepEqual: (a, b) => {
         try {
             return JSON.stringify(a) === JSON.stringify(b);

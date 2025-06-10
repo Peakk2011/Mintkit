@@ -3,15 +3,20 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link id="favicon" rel="icon" type="image/x-icon" href="/assists/FavIcons/darkmode.svg">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="icon" href="/assists/FavIcons/darkmode.svg">
+    <link rel="modulepreload" href="app.js">
+    <link rel="preload" href="live-reload.js" as="script">
     <div id="Title"></div>
 </head>
 
 <body>
     <div id="app"></div>
-    <script src="live-reload.js" defer></script>
-    <script src="app.js" type="module" defer></script>
+    <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(() => { }) }</script>
+    <script src="live-reload.js" async></script>
+    <script src="app.js" type="module" async></script>
 </body>
 
 </html>

@@ -1,7 +1,6 @@
 // Content.js Example to making content inside this file
 // WebElements = Custon user agent stylesheet units 
 export const WebElements = {
-    // ส่วนของ fonts ที่เราจะเพิ่มเข้ามาเอง
     StoredFontFamily: "@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@100..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Manrope:wght@200..800&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Trirong:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');",
     Typeface: [
         '"Inter Tight", sans-serif;',
@@ -13,7 +12,6 @@ export const WebElements = {
         '"Instrument Sans", sans-serif;',
         '"Source Serif 4", serif;'
     ],
-    // หาก fonts load ไม่เสร็จให้ตั้ง fonts ระบบเครืองตรงนี้
     DefaultFontFallback: '"Leelawadee UI", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif',
     Units: {
         CSSPosition: ['static', 'relative', 'fixed', 'absolute', 'sticky'],
@@ -38,16 +36,21 @@ export const WebElements = {
             AUTO: 'auto',
             boxSizing: 'border-box',
         },
+        weights: { // Added
+            light: '300',
+            normal: '400',
+            medium: '500',
+            semibold: '600',
+            bold: '700',
+            extrabold: '800'
+        },
     },
     DirectThemes: [
         '(prefers-color-scheme: dark)',
         '(prefers-color-scheme: light)'
     ],
     get BorderRadius() {
-        return {
-            FullyRounded: `100${this.Units.CSSSize.RelativeLengths.RelativeVMAX};`,
-            PrimaryRounded: `0.25${this.Units.CSSSize.RelativeLengths.RelativeREM};`,
-        };
+        return {}; 
     },
     get layout() {
         return {
@@ -73,10 +76,75 @@ export const WebElements = {
         };
     },
     get Transition() {
-        return {
-            FastEase: 'cubic-bezier(0.4, 0, 0.2, 1)',
-            SmoothEase: 'cubic-bezier(0.19, 1, 0.22, 1)',
-        }
+        return {};
+    },
+    spacing: {
+        0: '0',
+        px: '1px',
+        0.5: '0.125rem',  // 2px
+        1: '0.25rem',     // 4px
+        1.5: '0.375rem',  // 6px
+        2: '0.5rem',      // 8px
+        2.5: '0.625rem',  // 10px
+        3: '0.75rem',     // 12px
+        3.5: '0.875rem',  // 14px
+        4: '1rem',        // 16px
+        5: '1.25rem',     // 20px
+        6: '1.5rem',      // 24px
+        7: '1.75rem',     // 28px
+        8: '2rem',        // 32px
+        10: '2.5rem',     // 40px
+        12: '3rem',       // 48px
+        16: '4rem',       // 64px
+        20: '5rem',       // 80px
+        24: '6rem',       // 96px
+        32: '8rem',       // 128px
+    },
+    borderRadius: { 
+        none: '0',
+        sm: '0.125rem',          // 2px
+        DEFAULT: '0.25rem',      // 4px
+        md: '0.375rem',          // 6px
+        lg: '0.5rem',            // 8px
+        xl: '0.75rem',           // 12px
+        '2xl': '1rem',           // 16px
+        '3xl': '1.5rem',         // 24px
+        full: '100vmax'
+    },
+    shadows: {
+        sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+        DEFAULT: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+        md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+        xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+        '2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
+        inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)',
+        none: 'none'
+    },
+    transitions: { 
+        none: 'none',
+        all: 'all 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+        DEFAULT: 'color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+        colors: 'color, background-color, border-color, text-decoration-color, fill, stroke 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+        opacity: 'opacity 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+        shadow: 'box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+        transform: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+    },
+    easings: { 
+        linear: 'linear',
+        in: 'cubic-bezier(0.4, 0, 1, 1)',
+        out: 'cubic-bezier(0, 0, 0.2, 1)',
+        'in-out': 'cubic-bezier(0.4, 0, 0.2, 1)',
+        bounce: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+        smooth: 'cubic-bezier(0.19, 1, 0.22, 1)', 
+    },
+    breakpoints: { 
+        mb: '411px',
+        sm: '450px',
+        md: '768px',
+        lg: '1024px',
+        xl: '1280px',
+        '2xl': '1536px'
     }
 }
 
@@ -95,11 +163,8 @@ const darkThemeColors = {
 };
 
 export const WebContent = {
-    // สร้าง cache css สำหรับ preload หน้าเว็บใว้
-    // สร้าง PageTitle สำหรับชื่อเว็บ
     _cachedCSS: null,
     PageTitle: 'MintKit',
-    // Sync ธีม
     CSScolor: {},
     _themeChangeCallback: null,
 
@@ -132,7 +197,9 @@ export const WebContent = {
     HTMLContent: {
         Name: 'MintKit',
         PathFile: './content.js',
-        Introduce() {
+        Introduce(name, pathFile) {
+            const displayName = name || this.Name;            // parameter this.Name into default
+            const displayPath = pathFile || this.PathFile;    // parameter this.PathFile into default
             return `
                 <div class="IntroduceContent">
                     <img src="/assists/MintLogoPage.svg" alt="Mintkit MintLogo MintTeamsLogo">
@@ -142,25 +209,30 @@ export const WebContent = {
                         Adjust content your<br>
                         Webpage more dynamic.
                     </h1>
-                    <p>Edit <code>${this.PathFile}</code> to see chenges</p>
+                    <p>Edit <code>${displayPath}</code> to see chenges</p>
                 </div>
             `
         },
-        MintAssemblySimpleAddition() {
+        // parameters values for MintAssembly
+        MintAssemblySimpleAddition(variableAX = 200, variableBX = 'ax') {
             return `
                 <Entry>
-                    <mov dst="ax" src="200"></mov>
-                    <mov dst="bx" src="ax"></mov>
+                    <mov dst="ax" src="${variableAX}"></mov>
+                    <mov dst="bx" src="${variableBX}"></mov>
                     <print var="ax"></print>
                     <print var="bx"></print>
                 </Entry>
             `;
+            /*
+                Look like
+                mov rax, 200
+                mov rbx, eax
+                ...system call
+            */
         }
     },
 
     StaticCSSvalues: {
-        // ใส้ค่า CSS ของ Element ที่ต้องการจะใส่่ในนี้ได้เลย
-        // Preset สำหรับการจัด Layout ให้อยู่ตรงกลาง
         CenterPositions: {
             CALL: `${WebElements.Units.CSSPosition[3]}`,
             PositionY: `
@@ -177,7 +249,7 @@ export const WebContent = {
                     left: 50%;
                     transform: translate(-50%, -50%);
                 `;
-            }
+            },
         },
         // Interface preset example
         get KeyframeIntroduceAnim() {
@@ -258,60 +330,118 @@ export const WebContent = {
     // เช่นกันกับ CSS ว่าเราต้องการให้ไป style ในส่วนใหน
     StyledElementComponents() {
         if (this._cachedCSS) return this._cachedCSS;
-        const DefaultFontsfallback = WebElements.DefaultFontFallback;
+
+        const {
+            DefaultFontFallback,
+            Typeface,
+            Units,
+            spacing,
+            borderRadius,
+            easings,
+            breakpoints,
+        } = WebElements;
+        const { weights } = Units;
+
+        // Hoist properties
+        const normalizeCallReset = this.Normalize.CALLReset;
+        const textRenderForce = this.TextRendering.ForceGrayStyleRendering;
+        const textRenderSpecific = this.TextRendering.SpecificTargetingRendering;
+        const keyframeIntroduceAnim = this.StaticCSSvalues.KeyframeIntroduceAnim;
+        const introduceAnimationName = this.StaticCSSvalues.IntroduceAnimationName;
+        const centerPosCall = this.StaticCSSvalues.CenterPositions.CALL;
+        const centerPosCallPosition = this.StaticCSSvalues.CenterPositions.CALLPosition;
+
+        const colorPrimary = this.CSScolor.ColorPrimary || '#000000';
+        const textColorPrimaryDisplay = this.CSScolor.TextColorPrimaryDisplay;
+        const textColorPrimaryText = this.CSScolor.TextColorPrimaryText;
+        const highlightPrimary = this.CSScolor.HighlightPrimary;
+
         const GlobalCSS = `
             * {
-                ${WebElements.layout.Normalize};
-                ${this.TextRendering.ForceGrayStyleRendering};
+                ${normalizeCallReset};
+                ${textRenderForce};
             }
 
             body {
-                font-family: ${DefaultFontsfallback};
-                background-color: ${this?.CSScolor?.ColorPrimary || '#000000'};
+                font-family: ${DefaultFontFallback};
+                background-color: ${colorPrimary};
             }
 
             .IntroduceContent {
-                ${this.StaticCSSvalues.CenterPositions.CALLPosition};
-                position: ${this.StaticCSSvalues.CenterPositions.CALL};
-                max-width: ${WebElements.Units.CSSSize.RelativeLengths.RelativeMXCON};
-                min-width: ${WebElements.Units.CSSSize.RelativeLengths.RelativeMXCON};
-                animation: ${this.StaticCSSvalues.IntroduceAnimationName} ${WebElements.Transition.SmoothEase} 1200ms;
+                ${centerPosCallPosition};
+                position: ${centerPosCall};
+                max-width: 100${WebElements.Units.CSSSize.RelativeLengths.RelativePERCENT};
+                min-width: max-content;
+                padding: 0 ${spacing[4]}; 
+                animation: ${introduceAnimationName} ${easings.smooth} 1200ms;
+                transition: 500ms ${WebElements.easings.bounce};
             }
 
             .IntroduceContent img {
                 height: ${WebElements.Units.CSSSize.AUTO};
                 width: 60${WebElements.Units.CSSSize.AbsoluteLengths.StaticPX};
-                margin-top: 1.5${WebElements.Units.CSSSize.RelativeLengths.RelativeREM};
+                margin-bottom: ${spacing[6]};              /* 1.5rem */
             }
 
-            ${this.StaticCSSvalues.KeyframeIntroduceAnim}
+            ${keyframeIntroduceAnim}
 
             .IntroduceContent p {
-                color: ${this.CSScolor.TextColorPrimaryText};
-                font-family: ${WebElements.Typeface[4]};
-                margin-top: 1.75${WebElements.Units.CSSSize.RelativeLengths.RelativeREM};
+                color: ${textColorPrimaryText};
+                font-family: ${Typeface[4]};
+                margin-top: ${spacing[7]};                 /* 1.75rem */
             } 
 
             .IntroduceContent p code {
-                padding: 0.45${WebElements.Units.CSSSize.RelativeLengths.RelativeREM} 0.6${WebElements.Units.CSSSize.RelativeLengths.RelativeREM};
-                background-color: ${this.CSScolor.HighlightPrimary};
-                border-radius: ${WebElements.BorderRadius.PrimaryRounded};
+                padding: ${spacing[2]} ${spacing[2.5]};    /* 0.5rem 0.625rem */
+                background-color: ${highlightPrimary};
+                border-radius: ${borderRadius.DEFAULT};    /* 0.25rem */
             }
 
             .IntroduceContent h1 {
-                color: ${this.CSScolor.TextColorPrimaryDisplay};
+                color: ${textColorPrimaryDisplay};
                 line-height: 1.55;
-                font-family: ${WebElements.Typeface[0]};
-                font-weight: 500;
-                font-size: 30${WebElements.Units.CSSSize.AbsoluteLengths.StaticPX};
+                font-family: ${Typeface[0]};
+                font-weight: ${weights.medium}; 
+                font-size: 32${Units.CSSSize.AbsoluteLengths.StaticPX}; 
+                transition: 400ms ${WebElements.easings.smooth};
             }
 
             .IntroduceContent h1 strong {
-                padding: 0.2${WebElements.Units.CSSSize.RelativeLengths.RelativeREM} 1.25${WebElements.Units.CSSSize.RelativeLengths.RelativeREM};
-                background-color: ${this.CSScolor.HighlightPrimary};
-                border-radius: ${WebElements.BorderRadius.FullyRounded};
-                font-family: ${WebElements.Typeface[4]};
-                font-weight: 650;
+                padding: ${spacing[1]} ${spacing[5]}; 
+                background-color: ${highlightPrimary};
+                border-radius: ${borderRadius.full}; 
+                font-family: ${Typeface[4]};
+                font-weight: ${weights.semibold}; 
+            }            
+
+            /* Responsive adjustments */
+            @media (max-width: ${breakpoints.mb}), (max-width: ${breakpoints.sm}) {
+                .IntroduceContent {
+                    transform: translate(-50%, -50%) scale(0.85);
+                }
+            }
+
+            @media (max-width: ${breakpoints.md}) {
+                .IntroduceContent {
+                    max-width: ${Units.CSSSize.RelativeLengths.RelativeMXCON}; 
+                    min-width: ${Units.CSSSize.RelativeLengths.RelativeMXCON}; 
+                    padding: 0;
+                }
+                .IntroduceContent h1 {
+                    font-size: 28${Units.CSSSize.AbsoluteLengths.StaticPX};
+                }
+            }
+
+            @media (min-width: ${breakpoints.lg}) {
+                .IntroduceContent h1 {
+                    font-size: 30${Units.CSSSize.AbsoluteLengths.StaticPX};
+                }
+            }
+
+            @media (min-width: ${breakpoints.xl}) {
+                .IntroduceContent h1 {
+                    font-size: 32${Units.CSSSize.AbsoluteLengths.StaticPX};
+                }
             }
             
             @media ${WebElements.DirectThemes[1]} {
@@ -320,8 +450,7 @@ export const WebContent = {
                 }
             }
 
-            ${this.TextRendering.SpecificTargetingRendering}; // Apply specific text rendering
-            ${this.StaticCSSvalues.KeyframeIntroduceAnim};    // Include the keyframes definition
+            ${textRenderSpecific}; 
         `;
         this._cachedCSS = GlobalCSS;
         return GlobalCSS;
@@ -329,4 +458,4 @@ export const WebContent = {
 
 };
 
-WebContent.initThemeSystem(); // Initialize the theme system
+WebContent.initThemeSystem();
