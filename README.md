@@ -4,19 +4,19 @@
 
 <h1 align="center">Mintkit</h1>
 
-## About Mintkit 
-Mintkit: A Comprehensive JavaScript Framework
-<br>
-Design with a modern JavaScript framework designed to streamline web development by providing dynamic content management capabilities in a single, unified solution.
-Built with an integrated toolkit, Mintkit simplifies the website creation process while maintaining flexibility and performance.
+## 📚 About Mintkit 
+Mintkit is a comprehensive JavaScript framework designed to streamline web development by providing dynamic content management capabilities in a single, unified solution.  
+It simplifies the website creation process while maintaining flexibility and performance, allowing you to focus on creating innovative web applications. 🌐✨
 
-## Why Choose Mintkit?
-Mintkit eliminates the need for multiple libraries and frameworks by providing everything you need in one cohesive package. Whether you're building a simple website or a complex web application, Mintkit's intuitive API and powerful features make development more efficient and enjoyable.
+## 💡 Why Choose Mintkit?
+Mintkit eliminates the need for multiple libraries and frameworks by providing everything you need in one cohesive package.  
+Whether you're building a simple website or a complex web application, Mintkit's intuitive API and powerful features make development more efficient and enjoyable. 🚀
 
-## Features
-### Be warned that the code provided here cannot be placed purely because it is only included in the Featured section.
-Stored data with method argument 
-```Javascript
+## 🔧 Features
+### 🔒 Stored Data with Method Argument
+
+```markdown
+```javascript
 Name: 'MintKit',
 PathFile: './content.js',
 Introduce(name, pathFile) {
@@ -27,19 +27,19 @@ Introduce(name, pathFile) {
                 <img src="/assets/MintLogoPage.svg" alt="Mintkit MintLogo MintTeamsLogo">
                   <h1>
                     This is, <strong>${this.Name}</strong> <br>
-                    Framework that make you <br>
+                    Framework that makes you <br>
                     Adjust content your<br>
                     Webpage more dynamic.
                   </h1>
-                <p>Edit <code>${displayPath}</code> to see chenges</p>
+                <p>Edit <code>${displayPath}</code> to see changes</p>
               </div>
         `
     },
 ```
 
-Create your own user agent stylesheet example: 
+### 🖋️ Create Your Own User Agent Stylesheet
 
-```Javascript
+```javascript
 export const WebElements = {
     StoredFontFamily: "@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@100..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Manrope:wght@200..800&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Trirong:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');",
     Typeface: [
@@ -76,12 +76,13 @@ export const WebElements = {
             AUTO: 'auto',
             boxSizing: 'border-box',
         },
-// ... Rest of Mintkit code
+    },
+}
 ```
 
-Create your own preset styling
+### 🎨 Create Your Own Preset Styling
 
-```Javascript
+```javascript
 StaticCSSvalues: {
         CenterPositions: {
             CALL: `${WebElements.Units.CSSPosition[3]}`,
@@ -117,12 +118,11 @@ StaticCSSvalues: {
         },
         IntroduceAnimationName: 'IntroduceAnimation',
 },
-
 ```
 
-Build in Theme switcher
+### 🌗 Build-in Theme Switcher
 
-```Javascript
+```javascript
 const lightThemeColors = {
     ColorPrimary: '#FFFFFF;',
     TextColorPrimaryDisplay: '#080707;',
@@ -138,41 +138,41 @@ const darkThemeColors = {
 };
 ```
 
-Force text rendering
+### 📝 Force Text Rendering
 
-```Javascript
-    TextRendering: {
-        ForceGrayStyleRendering: `
+```javascript
+TextRendering: {
+    ForceGrayStyleRendering: `
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-smooth: never;
+        text-rendering: geometricPrecision;
+        -webkit-text-size-adjust: none;
+        -moz-text-size-adjust: none;
+        text-size-adjust: none;
+        font-feature-settings: "kern" 1;
+        font-synthesis: none;
+    `,
+    SpecificTargetingRendering: `
+        html, body, h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, textarea, label {
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             font-smooth: never;
             text-rendering: geometricPrecision;
-            -webkit-text-size-adjust: none;
-            -moz-text-size-adjust: none;
-            text-size-adjust: none;
-            font-feature-settings: "kern" 1;
-            font-synthesis: none;
-        `,
-        SpecificTargetingRendering: `
-            html, body, h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, textarea, label {
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
-                font-smooth: never;
-                text-rendering: geometricPrecision;
-            }
+        }
 
-            input, textarea, button, select {
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
-                font-smooth: never;
-            }
-        `,
-    },
+        input, textarea, button, select {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            font-smooth: never;
+        }
+    `,
+},
 ```
 
-Components
+### ⚙️ Components
 
-```Javascript
+```javascript
 ElementComponents() {
    return `
        ${this.HTMLContent.Introduce()}
@@ -180,10 +180,11 @@ ElementComponents() {
 },
 ```
 
-### MintAssembly
+### 🛠️ MintAssembly
+
 MintAssembly is an HTML programming language that emulates Assembly language, and in this option you can turn MintAssembly on and off.
 
-```Javascript
+```javascript
 // parameters values for MintAssembly
 MintAssemblySimpleAddition(variableAX = 200, variableBX = 'ax') {
       return `
@@ -203,9 +204,11 @@ MintAssemblySimpleAddition(variableAX = 200, variableBX = 'ax') {
 }
 ```
 
-### Usage
-To execute Mintkit code for your CSS styling differently from vanila example like this
-```CSS
+### 📑 Usage
+
+To execute Mintkit code for your CSS styling differently from the vanilla example like this:
+
+```css
 .IntroduceContent h1 {
     color: ${textColorPrimaryDisplay};
     line-height: 1.55;
@@ -241,4 +244,17 @@ To execute Mintkit code for your CSS styling differently from vanila example lik
 }
 ```
 
-In conclusion, using Mintkit will allow you to change the old system of making websites and create a new website that is dynamic and lightest. And you will finally see the coding that is dynamic typing. Everything is included in the Javascript file and it is better than you separate the HTML CSS file and separate the writing. Mintkit has its own live server for you to develop websites. What we create Plugins that we create from Mint Teams and our team are the most suitable to be compatible with the Mintkit Framework.
+## 🌟 Contributing
+
+We welcome contributions to **Mintkit**! Here's how you can help us improve:
+
+### 🔧 How to Contribute
+
+1. Fork this repository and clone it to your local machine.
+2. Create a new branch for your changes.
+3. Make your changes and write tests (if applicable).
+4. Ensure that the code
+
+#### passes all tests and follows the project’s style guidelines. <br />
+5\. Commit your changes with clear, concise commit messages. <br />
+6\. Push your changes and create a pull request with a detailed explanation.
