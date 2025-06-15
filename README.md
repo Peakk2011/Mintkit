@@ -16,7 +16,6 @@ Whether you're building a simple website or a complex web application, Mintkit's
 ### 🔒 Stored Data with Method Argument
 
 ```markdown
-```javascript
 Name: 'MintKit',
 PathFile: './content.js',
 Introduce(name, pathFile) {
