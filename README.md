@@ -15,7 +15,7 @@ Whether you're building a simple website or a complex web application, Mintkit's
 ## 🔧 Features
 ### 🔒 Stored Data with Method Argument
 
-```markdown
+```javascript
 Name: 'MintKit',
 PathFile: './content.js',
 Introduce(name, pathFile) {
@@ -33,7 +33,7 @@ Introduce(name, pathFile) {
                 <p>Edit <code>${displayPath}</code> to see changes</p>
               </div>
         `
-    },
+},
 ```
 
 ### 🖋️ Create Your Own User Agent Stylesheet
