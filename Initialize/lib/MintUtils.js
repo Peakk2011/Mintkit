@@ -1,3 +1,10 @@
+/**
+ * Mintkit Framework Core
+ * Author: Peakk (https://github.com/Peakk2011)
+ * Version: 0.1.0
+ * License: MIT
+ */
+
 export const pipe = function () {
     const a = arguments;
     return function (x) {
