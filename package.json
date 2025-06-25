@@ -1,0 +1,14 @@
+{
+  "name": "mintkit",
+  "version": "0.1.0",
+  "description": "A dynamic vanilla web framework",
+  "author": {
+    "name": "Peakk",
+    "url": "https://github.com/Peakk2011"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Peakk2011/Mintkit.git"
+  }
+}
