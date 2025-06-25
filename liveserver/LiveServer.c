@@ -6,26 +6,31 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <stdint.h>
+#include <shellapi.h>
 #include <time.h>  
-#include <signal.h>
+#include <process.h> // _beginthreadex
+#include <dwmapi.h>  // Dark mode title bar
+#include <uxtheme.h> // SetWindowTheme
 
 #pragma comment(lib, "ws2_32.lib")
+#pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "uxtheme.lib")
 
-// ANSI Color Codes for Windows CMD
-#define RESET "\033[0m"
-#define BOLD "\033[1m"
-#define DIM "\033[2m"
-#define RED "\033[31m"
-#define GREEN "\033[32m"
-#define YELLOW "\033[33m"
-#define BLUE "\033[34m"
-#define MAGENTA "\033[35m"
-#define CYAN "\033[36m"
-#define WHITE "\033[37m"
-#define BRIGHT_GREEN "\033[92m"
-#define BRIGHT_YELLOW "\033[93m"
-#define BRIGHT_BLUE "\033[94m"
-#define BRIGHT_CYAN "\033[96m"
+static HWND hLogEdit = NULL;
+static HANDLE hServerThread = NULL;
+static volatile int server_running = 1;
+static COLORREF g_bgColor = RGB(255, 255, 255);
+static COLORREF g_textColor = RGB(0, 0, 0);
+static HBRUSH g_bgBrush = NULL;
+static HFONT g_hFont = NULL;
+
+// declarations
+void Log(const char* format, ...);
+
+typedef struct {
+    int argc;
+    char** argv;
+} ThreadArgs;
 
 typedef struct FileSnapshot {
     char filename[260];
@@ -49,15 +54,6 @@ static int files_changed = 0;
 static FileSnapshot* file_snapshots = NULL;
 static int snapshot_count = 0;
 static int snapshot_capacity = 0;
-
-// Enable ANSI colors in Windows CMD
-void enable_ansi_colors() {
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD dwMode = 0;
-    GetConsoleMode(hOut, &dwMode);
-    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    SetConsoleMode(hOut, dwMode);
-}
 
 static inline void fast_memcpy(void* dest, const void* src, size_t n) {
     #ifdef _WIN64
@@ -127,7 +123,7 @@ MemoryPool* init_memory_pool(int initial_capacity) {
     fast_memset(pool->blocks, 0, sizeof(void*) * initial_capacity);
     fast_memset(pool->sizes, 0, sizeof(size_t) * initial_capacity);
     
-    printf("%s[Memory Pool]%s Initialized with %d slots\n\n", BRIGHT_BLUE, RESET, initial_capacity);
+    Log("[Memory Pool] Initialized with %d slots", initial_capacity);
     return pool;
 }
 
@@ -212,27 +208,35 @@ int count_lines(const char* content) {
 }
 
 void compare_and_show_changes(const char* filename, const char* old_content, const char* new_content) {
-    char* old_line = (char*)smart_malloc(1024);
-    char* new_line = (char*)smart_malloc(1024);
+    const int MAX_LINE_LENGTH = 8192;
+    char* old_line = (char*)smart_malloc(MAX_LINE_LENGTH);
+    char* new_line = (char*)smart_malloc(MAX_LINE_LENGTH);
+
+    if (!old_line || !new_line) {
+        Log("[Memory Error] Failed to allocate memory for diff buffers.");
+        smart_free(old_line); // smart_free is safe to call on NULL
+        smart_free(new_line);
+        return;
+    }
     
     const char* old_ptr = old_content;
     const char* new_ptr = new_content;
     int line_num = 1;
     int changes_found = 0;
     
-    printf("\n%s[File Changed]%s %s%s%s\n", BRIGHT_YELLOW, RESET, CYAN, filename, RESET);
-    printf("%s─────────────────────────────────────────────%s\n", DIM, RESET);
+    Log("\n[File Changed] %s", filename);
+    Log("─────────────────────────────────────────────");
     
     while (*old_ptr || *new_ptr) {
         int old_len = 0;
-        while (*old_ptr && *old_ptr != '\n' && old_len < 1023) {
+        while (*old_ptr && *old_ptr != '\n' && old_len < MAX_LINE_LENGTH - 1) {
             old_line[old_len++] = *old_ptr++;
         }
         old_line[old_len] = '\0';
         if (*old_ptr == '\n') old_ptr++;
         
         int new_len = 0;
-        while (*new_ptr && *new_ptr != '\n' && new_len < 1023) {
+        while (*new_ptr && *new_ptr != '\n' && new_len < MAX_LINE_LENGTH - 1) {
             new_line[new_len++] = *new_ptr++;
         }
         new_line[new_len] = '\0';
@@ -240,11 +244,11 @@ void compare_and_show_changes(const char* filename, const char* old_content, con
         
         if (strcmp(old_line, new_line) != 0) {
             if (old_len == 0 && new_len > 0) {
-                printf("%s+ %s%d%s: %s%s%s\n", BRIGHT_GREEN, YELLOW, line_num, RESET, GREEN, new_line, RESET);
+                Log("+ %d: %s", line_num, new_line);
             } else if (old_len > 0 && new_len == 0) {
-                printf("%s- %s%d%s: %s%s%s\n", RED, YELLOW, line_num, RESET, RED, old_line, RESET);
+                Log("- %d: %s", line_num, old_line);
             } else {
-                printf("%s~ %s%d%s: %s%s%s\n", BRIGHT_YELLOW, YELLOW, line_num, RESET, BRIGHT_CYAN, new_line, RESET);
+                Log("~ %d: %s", line_num, new_line);
             }
             changes_found = 1;
         }
@@ -254,10 +258,10 @@ void compare_and_show_changes(const char* filename, const char* old_content, con
     }
     
     if (!changes_found) {
-        printf("%sNo line changes detected (possibly metadata only)%s\n", DIM, RESET);
+        Log("No line changes detected (possibly metadata only)");
     }
     
-    printf("%s─────────────────────────────────────────────%s\n\n", DIM, RESET);
+    Log("─────────────────────────────────────────────\n");
     
     smart_free(old_line);
     smart_free(new_line);
@@ -283,7 +287,8 @@ void update_file_snapshot(const char* filename, FILETIME* write_time) {
         }
         
         snapshot = &file_snapshots[snapshot_count++];
-        strcpy(snapshot->filename, filename);
+        strncpy(snapshot->filename, filename, sizeof(snapshot->filename) - 1);
+        snapshot->filename[sizeof(snapshot->filename) - 1] = '\0';
         snapshot->content = NULL;
     }
     
@@ -291,7 +296,7 @@ void update_file_snapshot(const char* filename, FILETIME* write_time) {
         compare_and_show_changes(filename, snapshot->content, content);
         smart_free(snapshot->content);
     } else {
-        printf("%s[New File Tracked]%s %s%s%s\n\n", BRIGHT_GREEN, RESET, CYAN, filename, RESET);
+        Log("[New File Tracked] %s\n", filename);
     }
     
     snapshot->content = content;
@@ -351,14 +356,12 @@ int check_files_modified() {
         
         SYSTEMTIME st;
         GetLocalTime(&st);
-        printf("%s[Hot Reload]%s %s%02d:%02d:%02d%s - Changes detected, reloading...\n\n", 
-               BRIGHT_GREEN, RESET, BRIGHT_BLUE, st.wHour, st.wMinute, st.wSecond, RESET);
+        Log("[Hot Reload] %02d:%02d:%02d - Changes detected, reloading...\n", st.wHour, st.wMinute, st.wSecond);
     }
     
     uint64_t end_cycles = get_cpu_cycles();
     if (end_cycles > start_cycles && changed) {
-        printf("%s[Performance]%s File scan completed in %s%llu%s CPU cycles\n\n", 
-               MAGENTA, RESET, YELLOW, end_cycles - start_cycles, RESET);
+        Log("[Performance] File scan completed in %llu CPU cycles\n", end_cycles - start_cycles);
     }
     
     return changed;
@@ -374,8 +377,8 @@ void serve_file(SOCKET client, const char *filename) {
             "Content-Type: text/html\r\n"
             "Content-Length: 47\r\n\r\n"
             "<h1>404 Not Found</h1><p>File not found</p>";
-        send(client, not_found, strlen(not_found), 0);
-        printf("%s[404 Error]%s File not found: %s%s%s\n", RED, RESET, CYAN, filename, RESET);
+        send(client, not_found, (int)strlen(not_found), 0);
+        Log("[404 Error] File not found: %s", filename);
         return;
     }
 
@@ -401,27 +404,27 @@ void serve_file(SOCKET client, const char *filename) {
     char *buffer = (char*)smart_malloc(size);
     if (!buffer) {
         const char *error = "HTTP/1.1 500 Internal Server Error\r\n\r\nMemory allocation failed";
-        send(client, error, strlen(error), 0);
+        send(client, error, (int)strlen(error), 0);
         fclose(file);
-        printf("%s[Memory Error]%s Failed to allocate memory for: %s%s%s\n", RED, RESET, CYAN, filename, RESET);
+        Log("[Memory Error] Failed to allocate memory for: %s", filename);
         return;
     }
 
     size_t bytes_read = fread(buffer, 1, size, file);
     fclose(file);
 
-    if (bytes_read == 0) {
+    if (bytes_read != size) {
         const char *error = "HTTP/1.1 500 Internal Server Error\r\n\r\nFailed to read file";
-        send(client, error, strlen(error), 0);
+        send(client, error, (int)strlen(error), 0);
         smart_free(buffer);
-        printf("%s[Read Error]%s Failed to read file: %s%s%s\n", RED, RESET, CYAN, filename, RESET);
+        Log("[Read Error] Failed to read file: %s", filename);
         return;
     }
 
     char *header = (char*)smart_malloc(512);
     if (!header) {
         const char *error = "HTTP/1.1 500 Internal Server Error\r\n\r\nHeader allocation failed";
-        send(client, error, strlen(error), 0);
+        send(client, error, (int)strlen(error), 0);
         smart_free(buffer);
         return;
     }
@@ -443,8 +446,7 @@ void serve_file(SOCKET client, const char *filename) {
     
     uint64_t end_cycles = get_cpu_cycles();
     if (end_cycles > start_cycles) {
-        printf("%s[Request Served]%s %s%s%s (%s%zu%s bytes) - %s%llu%s cycles\n", 
-               GREEN, RESET, CYAN, filename, RESET, YELLOW, bytes_read, RESET, YELLOW, end_cycles - start_cycles, RESET);
+        Log("[Request Served] %s (%zu bytes) - %llu cycles", filename, bytes_read, end_cycles - start_cycles);
     }
 }
 
@@ -474,33 +476,48 @@ void serve_live_script(SOCKET client) {
 void cleanup_memory_pool() {
     if (!memory_pool) return;
     
-    printf("\n%s[Cleanup]%s Memory pool cleanup initiated\n", BRIGHT_YELLOW, RESET);
-    printf("%s[Stats]%s Total allocations: %s%d%s blocks\n", MAGENTA, RESET, YELLOW, memory_pool->count, RESET);
-    printf("%s[Stats]%s Total memory: %s%zu%s bytes\n", MAGENTA, RESET, YELLOW, memory_pool->total_allocated, RESET);
-    
-    for (int i = 0; i < memory_pool->count; i++) {
-        if (memory_pool->blocks[i]) {
-            free(memory_pool->blocks[i]);
-        }
-    }
+    Log("\n[Cleanup] Memory pool cleanup initiated");
+    Log("[Stats] Total allocations: %d blocks", memory_pool->count);
+    Log("[Stats] Total memory: %zu bytes", memory_pool->total_allocated);
 
-    for (int i = 0; i < snapshot_count; i++) {
-        if (file_snapshots[i].content) {
-            smart_free(file_snapshots[i].content);
-        }
+    for (int i = 0; i < memory_pool->count; i++) {
+        if (memory_pool->blocks[i]) free(memory_pool->blocks[i]);
     }
     free(file_snapshots);
+    file_snapshots = NULL;
     
     free(memory_pool->blocks);
     free(memory_pool->sizes);
     free(memory_pool);
     memory_pool = NULL;
-    
-    printf("%s[Success]%s Memory pool cleaned up successfully\n\n", BRIGHT_GREEN, RESET);
+
+    Log("[Success] Memory pool cleaned up successfully\n");
 }
 
-int main() {
-    enable_ansi_colors();
+void get_local_ip(char* buffer, int size) {
+    char host_name[256];
+    struct hostent *host_entry;
+    if (gethostname(host_name, sizeof(host_name)) == SOCKET_ERROR) {
+        strncpy(buffer, "127.0.0.1", size - 1);
+        buffer[size - 1] = '\0';
+        return;
+    }
+
+    host_entry = gethostbyname(host_name);
+    if (host_entry == NULL) {
+        strncpy(buffer, "127.0.0.1", size - 1);
+        buffer[size - 1] = '\0';
+        return;
+    }
+
+    strncpy(buffer, inet_ntoa(*(struct in_addr *)*host_entry->h_addr_list), size - 1);
+    buffer[size - 1] = '\0';
+}
+
+unsigned __stdcall ServerThread(void* pArguments) {
+    ThreadArgs* thread_args = (ThreadArgs*)pArguments;
+    int argc = thread_args->argc;
+    char** argv = thread_args->argv;
     
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -509,31 +526,53 @@ int main() {
     int opt = 1;
     setsockopt(server, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
 
+    unsigned short port = 3000;
+    if (argc > 1) {
+        port = (unsigned short)atoi(argv[1]);
+        if (port == 0) {
+            Log("[Warning] Invalid port '%s'. Using default 3000.", argv[1]);
+            port = 3000;
+        }
+    }
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(3000);
+    addr.sin_port = htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
 
     if (bind(server, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR) {
-        printf("%s[Error]%s Bind failed with error: %d\n", RED, RESET, WSAGetLastError());
+        Log("[Error] Bind failed with error: %d", WSAGetLastError());
         cleanup_memory_pool();
+        free(thread_args);
         return 1;
     }
 
     listen(server, 5);
     GetSystemTimeAsFileTime(&last_check_time);
 
-    printf("%s[Server Ready]%s %shttp://localhost:3000%s\n", BRIGHT_GREEN, RESET, BRIGHT_BLUE, RESET);
-    printf("%s[Watching]%s HTML, CSS, JS, JSON, TS, TSX, JSX files\n\n", YELLOW, RESET);
-    
-    signal(SIGINT, (void(*)(int))cleanup_memory_pool);
+    char local_ip[40] = {0};
+    get_local_ip(local_ip, sizeof(local_ip));
 
-    while (1) {
+    Log("[Server Ready] Listening on:");
+    Log("  - Local:   http://localhost:%d", port);
+    if (strcmp(local_ip, "127.0.0.1") != 0 && strlen(local_ip) > 0) {
+        Log("  - Network: http://%s:%d \n", local_ip, port);
+    }
+    Log("[Watching] HTML, CSS, JS, JSON, TS, TSX, JSX files\n");
+
+    char url[256];
+    snprintf(url, sizeof(url), "http://localhost:%d", port);
+    ShellExecuteA(NULL, "open", url, NULL, NULL, SW_SHOWNORMAL);
+
+    while (server_running) {
         SOCKET client = accept(server, NULL, NULL);
-        if (client == INVALID_SOCKET) continue;
-        
+        if (client == INVALID_SOCKET) break;
+
         char *buffer = (char*)smart_malloc(2048);
-        fast_memset(buffer, 0, 2048);
+        if (!buffer) {
+            Log("[Memory Error] Failed to allocate request buffer.");
+            closesocket(client);
+            continue;
+        }
         int bytes_received = recv(client, buffer, 2047, 0);
         
         if (bytes_received > 0) {
@@ -547,7 +586,7 @@ int main() {
                 check_files_modified();
                 serve_reload(client);
             } else if (strcmp(path, "/live-reload.js") == 0) {
-                printf("%s[%s]%s %s%s%s\n", BRIGHT_BLUE, method, RESET, CYAN, path, RESET);
+                Log("[%s] %s", method, path);
                 check_files_modified();
                 serve_live_script(client);
             } else if (strcmp(path, "/memory-stats") == 0) {
@@ -562,14 +601,14 @@ int main() {
                         snapshot_count);
                     send(client, stats, stats_len, 0);
                     smart_free(stats);
-                }                
-                printf("%s[%s]%s %s%s%s\n", BRIGHT_BLUE, method, RESET, CYAN, path, RESET);
+                }
+                Log("[%s] %s", method, path);
             } else {
                 char *file = path + 1;  
                 if (strlen(file) == 0) {
                     file = "index.html";
                 }
-                printf("%s[%s]%s %s%s%s\n", BRIGHT_BLUE, method, RESET, CYAN, path, RESET);
+                Log("[%s] %s", method, path);
                 check_files_modified();
                 serve_file(client, file);
             }
@@ -582,15 +621,175 @@ int main() {
     cleanup_memory_pool();
     closesocket(server);
     WSACleanup();
+    free(thread_args);
     return 0;
+}
+
+void Log(const char* format, ...) {
+    if (!hLogEdit) return;
+
+    char buffer[4096];
+    va_list args;
+    va_start(args, format);
+    int count = vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    if (count < 0) return;
+
+    // Append text to the edit control
+    int len = GetWindowTextLength(hLogEdit);
+    SendMessage(hLogEdit, EM_SETSEL, (WPARAM)len, (LPARAM)len);
+    SendMessage(hLogEdit, EM_REPLACESEL, 0, (LPARAM)buffer);
+    SendMessage(hLogEdit, EM_REPLACESEL, 0, (LPARAM)"\r\n");
+}
+
+BOOL IsDarkModeEnabled() {
+    HKEY hKey;
+    DWORD dwValue = 1; 
+    DWORD dwSize = sizeof(dwValue);
+
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        if (RegQueryValueExW(hKey, L"AppsUseLightTheme", NULL, NULL, (LPBYTE)&dwValue, &dwSize) != ERROR_SUCCESS) {
+            dwValue = 1;
+        }
+        RegCloseKey(hKey);
+    }
+    return dwValue == 0;
+}
+
+void ApplyTheme(HWND hwnd) {
+    BOOL isDark = IsDarkModeEnabled();
+
+    g_bgColor = isDark ? RGB(16, 16, 16) : RGB(255, 255, 255);
+    g_textColor = isDark ? RGB(240, 240, 240) : RGB(0, 0, 0);
+
+    if (g_bgBrush) {
+        DeleteObject(g_bgBrush);
+    }
+    g_bgBrush = CreateSolidBrush(g_bgColor);
+
+    DwmSetWindowAttribute(hwnd, 20, &isDark, sizeof(isDark));
+
+    InvalidateRect(hwnd, NULL, TRUE);
+    UpdateWindow(hwnd);
+}
+
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    switch (uMsg) {
+        case WM_CREATE:
+            SetClassLongPtr(hwnd, GCLP_HICON, (LONG_PTR)NULL);
+            SetClassLongPtr(hwnd, GCLP_HICONSM, (LONG_PTR)NULL);
+            
+            hLogEdit = CreateWindowEx(
+                0, "EDIT", "",
+                WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL,
+                0, 0, 0, 0,
+                hwnd, (HMENU)1, GetModuleHandle(NULL), NULL);
+            
+            if(hLogEdit == NULL) {
+                MessageBox(hwnd, "Could not create edit box.", "Error", MB_OK | MB_ICONERROR);
+            }
+            
+            SetWindowTheme(hLogEdit, L"Explorer", NULL);
+            g_hFont = CreateFontA(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 
+                                  OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 
+                                  FIXED_PITCH | FF_MODERN, "Consolas");
+            if (g_hFont == NULL) {
+                g_hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+            }
+            SendMessage(hLogEdit, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            ApplyTheme(hwnd);
+            break;
+
+        case WM_CTLCOLOREDIT: {
+            HDC hdcEdit = (HDC) wParam;
+            SetTextColor(hdcEdit, g_textColor);
+            SetBkColor(hdcEdit, g_bgColor);
+            return (LRESULT)g_bgBrush;
+        }
+
+        case WM_SETTINGCHANGE:
+            if (lParam && wcscmp((LPCWSTR)lParam, L"ImmersiveColorSet") == 0) {
+                ApplyTheme(hwnd);
+            }
+            break;
+
+        case WM_SIZE:
+            MoveWindow(hLogEdit, 0, 0, LOWORD(lParam), HIWORD(lParam), TRUE);
+            break;
+
+        case WM_CLOSE:
+            if (MessageBox(hwnd, "Closing Mintputs will stop the local web server. Are you sure?", "Mintputs", MB_OKCANCEL) == IDOK) {
+                server_running = 0;
+                closesocket(0); 
+                DestroyWindow(hwnd);
+            }
+            break;
+
+        case WM_DESTROY:
+            if (g_hFont && g_hFont != GetStockObject(DEFAULT_GUI_FONT)) {
+                DeleteObject(g_hFont);
+            }
+            if (g_bgBrush) {
+                DeleteObject(g_bgBrush);
+            }
+            cleanup_memory_pool();
+            PostQuitMessage(0);
+            break;
+
+        default:
+            return DefWindowProc(hwnd, uMsg, wParam, lParam);
+    }
+    return 0;
+}
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    const char CLASS_NAME[]  = "MintPutsWindowClass";
+    
+    WNDCLASS wc = {0};
+    wc.lpfnWndProc   = WindowProc;
+    wc.hInstance     = hInstance;
+    wc.lpszClassName = CLASS_NAME;
+    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+
+    RegisterClass(&wc);
+
+    HWND hwnd = CreateWindowEx(0, CLASS_NAME, "Live server console",
+        WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME,
+        CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
+        NULL, NULL, hInstance, NULL);
+
+    if (hwnd == NULL) return 0;
+
+    ShowWindow(hwnd, nCmdShow);
+
+    ThreadArgs* args = (ThreadArgs*)malloc(sizeof(ThreadArgs));
+    if (!args) {
+        MessageBox(hwnd, "Failed to allocate memory for thread arguments.", "Fatal Error", MB_OK | MB_ICONERROR);
+        return 1;
+    }
+    args->argc = __argc;
+    args->argv = __argv;
+
+    hServerThread = (HANDLE)_beginthreadex(NULL, 0, &ServerThread, (void*)args, 0, NULL);
+
+    MSG msg = {0};
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    WaitForSingleObject(hServerThread, INFINITE);
+    CloseHandle(hServerThread);
+
+    return (int)msg.wParam;
 }
 
 /*  
     Compile using:
-    gcc -O2 WebExecute.c -o WebExecute.exe -lws2_32
-    If compile to assembly | GCC | NASM
-    gcc -S -O2 WebExecute.c -o WebExecute.s -lws2_32
-    gcc -S -masm=intel -O2 WebExecute.c -o WebExecute.asm -lws2_32
+    gcc -O2 LiveServer.c -o LiveServer.exe -lws2_32 -lshell32 -mwindows -ldwmapi -luxtheme
+    
     Then open http://localhost:3000
     
     Features:
