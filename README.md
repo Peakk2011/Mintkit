@@ -12,248 +12,210 @@ It simplifies the website creation process while maintaining flexibility and per
 Mintkit eliminates the need for multiple libraries and frameworks by providing everything you need in one cohesive package.  
 Whether you're building a simple website or a complex web application, Mintkit's intuitive API and powerful features make development more efficient and enjoyable. 🚀
 
-## 🔧 Features
-### 🔒 Stored Data with Method Argument
+## 🔧 Core Features
 
-```javascript
-Name: 'MintKit',
-PathFile: './content.js',
-Introduce(name, pathFile) {
-    const displayName = name || this.Name;            // parameter this.Name into default
-    const displayPath = pathFile || this.PathFile;    // parameter this.PathFile into default
-        return `
-              <div class="IntroduceContent">
-                <img src="/assets/MintLogoPage.svg" alt="Mintkit MintLogo MintTeamsLogo">
-                  <h1>
-                    This is, <strong>${this.Name}</strong> <br>
-                    Framework that makes you <br>
-                    Adjust content your<br>
-                    Webpage more dynamic.
-                  </h1>
-                <p>Edit <code>${displayPath}</code> to see changes</p>
-              </div>
-        `
-},
+### 🎯 State Management & Virtual DOM
+- **Reactive State System**: Automatic re-rendering when state changes
+- **Virtual DOM**: Efficient DOM diffing and patching
+- **Component Architecture**: Modular and reusable components
+
+### 🎨 Design System
+- **Typography**: Google Fonts integration with comprehensive font system
+- **Spacing Scale**: Consistent spacing from 0-32rem
+- **Theme System**: Automatic light/dark theme switching
+- **Responsive Design**: Built-in breakpoint system
+- **Animation**: Smooth transitions and keyframes
+
+### 🛠️ Development Tools
+- **Live Reload**: Hot reloading development server
+- **MintAssembly**: HTML-based programming language
+- **Electron Support**: Desktop application framework
+- **Performance Monitoring**: Built-in performance tracking
+
+## 🚀 Quick Start
+
+### 1. Basic Setup
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body>
+  <div id="app"></div>
+  <script src="app.js" type="module" async></script>
+</body>
+</html>
 ```
 
-### 🖋️ Create Your Own User Agent Stylesheet
-
+### 2. Import Framework
 ```javascript
-export const WebElements = {
-    StoredFontFamily: "@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@100..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Manrope:wght@200..800&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Trirong:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');",
-    Typeface: [
-        '"Inter Tight", sans-serif;',
-        '"Merriweather", serif;',
-        '"Trirong", serif;',
-        '"Anuphan", sans-serif;',
-        '"JetBrains Mono", monospace;',
-        '"Manrope", sans-serif;',
-        '"Instrument Sans", sans-serif;',
-        '"Source Serif 4", serif;'
-    ],
-    DefaultFontFallback: '"Leelawadee UI", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif',
-    Units: {
-        CSSPosition: ['static', 'relative', 'fixed', 'absolute', 'sticky'],
-        CSSSize: {
-            AbsoluteLengths: {
-                StaticCM: 'cm',
-                StaticMM: 'mm',
-                StaticIN: 'in',
-                StaticPT: 'pt',
-                StaticPC: 'pc',
-                StaticPX: 'px'
-            },
-            RelativeLengths: {
-                RelativeEM: 'em',
-                RelativeREM: 'rem',
-                RelativeVW: 'vw',
-                RelativeVH: 'vh',
-                RelativePERCENT: '%',
-                RelativeVMAX: 'vmax',
-                RelativeMXCON: 'max-content',
-            },
-            AUTO: 'auto',
-            boxSizing: 'border-box',
-        },
+// mint.js
+import { createState, injectCSS, injectHTML, injectTitle } from './MintUtils.js';
+import { MintAssembly } from './HTMLInterpreter.js';
+
+export const Mint = {
+    createState,
+    injectCSS,
+    injectHTML,
+    injectTitle,
+    MintAssembly
+};
+```
+
+### 3. Create Content
+```javascript
+// Content.js
+export const WebContent = {
+    PageTitle: 'My Mintkit App',
+    
+    HTMLContent: {
+        Introduce() {
+            return `<div class="introduce"><h1>Welcome to Mintkit</h1></div>`;
+        }
     },
-}
-```
-
-### 🎨 Create Your Own Preset Styling
-
-```javascript
-StaticCSSvalues: {
-        CenterPositions: {
-            CALL: `${WebElements.Units.CSSPosition[3]}`,
-            PositionY: `
-                top: 50%;
-                transform: translateY(-50%);
-            `,
-            PositionX: `
-                left: 50%;
-                transform: translateX(-50%);
-            `,
-            get CALLPosition() {
-                return `
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                `;
-            },
-        },
-        // Interface preset example
-        get KeyframeIntroduceAnim() {
-            const animationName = 'IntroduceAnimation';
-            return `
-            @keyframes ${animationName} {
-                0% {
-                    opacity: 0;
-                }
-                100% {
-                    opacity: 1;
-                }
+    
+    ElementComponents() {
+        return this.HTMLContent.Introduce();
+    },
+    
+    StyledElementComponents() {
+        return `
+            .introduce {
+                text-align: center;
+                padding: 2rem;
+                font-family: 'Inter Tight', sans-serif;
             }
-        `
-        },
-        IntroduceAnimationName: 'IntroduceAnimation',
-},
-```
-
-### 🌗 Build-in Theme Switcher
-
-```javascript
-const lightThemeColors = {
-    ColorPrimary: '#FFFFFF;',
-    TextColorPrimaryDisplay: '#080707;',
-    TextColorPrimaryText: '#333333;',
-    HighlightPrimary: '#ffe9e9;',
-};
-
-const darkThemeColors = {
-    ColorPrimary: '#000000;',
-    TextColorPrimaryDisplay: '#FFD9D9;',
-    TextColorPrimaryText: '#d0bec1;',
-    HighlightPrimary: '#413c3c;',
+        `;
+    }
 };
 ```
 
-### 📝 Force Text Rendering
-
+### 4. Initialize App
 ```javascript
-TextRendering: {
-    ForceGrayStyleRendering: `
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        font-smooth: never;
-        text-rendering: geometricPrecision;
-        -webkit-text-size-adjust: none;
-        -moz-text-size-adjust: none;
-        text-size-adjust: none;
-        font-feature-settings: "kern" 1;
-        font-synthesis: none;
-    `,
-    SpecificTargetingRendering: `
-        html, body, h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, textarea, label {
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            font-smooth: never;
-            text-rendering: geometricPrecision;
-        }
+// app.js
+import { Mint } from './lib/mint.js';
+import { WebContent } from './Content.js';
 
-        input, textarea, button, select {
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            font-smooth: never;
-        }
-    `,
-},
+const Main = Mint.createState({});
+
+const render = () => {
+    const html = WebContent.ElementComponents();
+    const css = WebContent.StyledElementComponents();
+    
+    Mint.injectCSS(css);
+    Mint.injectHTML('#app', html);
+    Mint.injectTitle(`<title>${WebContent.PageTitle}</title>`);
+};
+
+Main.subscribe(render);
+Main.set({});
 ```
 
-### ⚙️ Components
+## Build-in Features
 
+### State Management
 ```javascript
-ElementComponents() {
-   return `
-       ${this.HTMLContent.Introduce()}
-   `;
-},
+const state = Mint.createState({ count: 0 });
+
+// Update state
+state.set(s => ({ ...s, count: s.count + 1 }));
+
+// Subscribe to changes
+state.subscribe((newState) => {
+    console.log('State updated:', newState);
+});
 ```
 
-### 🛠️ MintAssembly
-
-MintAssembly is an HTML programming language that emulates Assembly language, and in this option you can turn MintAssembly on and off.
-
+### Theme System
 ```javascript
-// parameters values for MintAssembly
-MintAssemblySimpleAddition(variableAX = 200, variableBX = 'ax') {
-      return `
-          <Entry>
-              <mov dst="ax" src="${variableAX}"></mov>
-              <mov dst="bx" src="${variableBX}"></mov>
-              <print var="ax"></print>
-              <print var="bx"></print>
-          </Entry>
-  `;
-  /*
-      Look like
-      mov rax, 200
-      mov rbx, eax
-      ...system call
-  */
-}
+const lightTheme = {
+    ColorPrimary: '#FFFFFF',
+    TextColorPrimary: '#080707'
+};
+
+const darkTheme = {
+    ColorPrimary: '#000000',
+    TextColorPrimary: '#FFD9D9'
+};
+
+WebContent.initThemeSystem();
 ```
 
-### 📑 Usage
-
-To execute Mintkit code for your CSS styling differently from the vanilla example like this:
-
-```css
-.IntroduceContent h1 {
-    color: ${textColorPrimaryDisplay};
-    line-height: 1.55;
-    font-family: ${Typeface[0]};
-    font-weight: ${weights.medium}; 
-    font-size: 32${Units.CSSSize.AbsoluteLengths.StaticPX}; 
-    transition: 400ms ${WebElements.easings.smooth};
-}
-
-.IntroduceContent h1 strong {
-    padding: ${spacing[1]} ${spacing[5]}; 
-    background-color: ${highlightPrimary};
-    border-radius: ${borderRadius.full}; 
-    font-family: ${Typeface[4]};
-    font-weight: ${weights.semibold}; 
-}
-/* Responsive adjustments */
-@media (max-width: ${breakpoints.mb}), (max-width: ${breakpoints.sm}) {
-    .IntroduceContent {
-        transform: translate(-50%, -50%) scale(0.85);
-    }
-}
-
-@media (max-width: ${breakpoints.md}) {
-    .IntroduceContent {
-        max-width: ${Units.CSSSize.RelativeLengths.RelativeMXCON};
-        min-width: ${Units.CSSSize.RelativeLengths.RelativeMXCON}; 
-        padding: 0;
-    }
-    .IntroduceContent h1 {
-        font-size: 28${Units.CSSSize.AbsoluteLengths.StaticPX};
-    }
-}
+### MintAssembly Programming
+```html
+<Entry>
+    <mov dst="ax" src="200"></mov>
+    <mov dst="bx" src="100"></mov>
+    <add dst="ax" src="bx"></add>
+    <print var="ax"></print>
+</Entry>
 ```
+
+## 🔧 Development
+
+### Live Reload Server
+```bash
+cd mintkit
+./LiveServer.exe
+# Open http://localhost:3000
+```
+
+### Electron App
+```bash
+cd mintkit-electron
+npm install
+npm start
+```
+
+## 📁 Project Structure
+```
+Mintkit.js Framework/
+├── mintkit/                    # Core framework
+│   ├── lib/                   # Library files
+│   ├── Content.js            # Content and styling
+│   ├── app.js               # Main application
+│   └── index.html           # Entry point
+├── mintkit-electron/         # Electron desktop app
+├── mintkit-purehtml/         # Pure HTML example
+└── documents/               # Documentation
+```
+
+## 📖 Documentation
+
+For detailed documentation, examples, and advanced usage, see:
+- **[Complete Documentation](documents/MintkitJS_EXPLAIN.MD)** - Comprehensive guide
+- **Examples** - Check the `mintkit-purehtml/` directory
+- **Electron App** - See `mintkit-electron/` for desktop applications
 
 ## 🌟 Contributing
 
-We welcome contributions to **Mintkit**! Here's how you can help us improve:
+We welcome all contributions to **Mintkit**! Here's how you can help to improve:
 
 ### 🔧 How to Contribute
 
-1. Fork this repository and clone it to your local machine.
-2. Create a new branch for your changes.
-3. Make your changes and write tests (if applicable).
-4. Ensure that the code
+1. **Fork** this repository and clone it to your local machine.
+2. **Create** a new branch for your changes.
+3. **Make** your changes and write tests (if applicable).
+4. **Ensure** that the code passes all tests and follows the project's style guidelines.
+5. **Commit** your changes with clear, concise commit messages.
+6. **Push** your changes and create a pull request with a detailed explanation.
 
-#### passes all tests and follows the project’s style guidelines. <br />
-5\. Commit your changes with clear, concise commit messages. <br />
-6\. Push your changes and create a pull request with a detailed explanation.
+### 📋 Contribution Guidelines
+
+- **Code Style**: Follow the existing code style and conventions
+- **Documentation**: Update documentation for any new features
+- **Testing**: Add tests for new functionality
+- **Performance**: Consider performance implications of changes
+- **Compatibility**: Ensure changes work across different browsers
+
+## 🔗 Links
+
+- **GitHub Repository**: https://github.com/Peakk2011/Mintkit
+- **CDN**: https://cdn.jsdelivr.net/gh/Peakk2011/Mint_NextgenJS@main/lib/MintUtils.js
+- **Documentation**: [Complete Guide](documents/MintkitJS_EXPLAIN.MD)
+
+---
+
+**Mintkit** - Making web development dynamic and more customizable way.
