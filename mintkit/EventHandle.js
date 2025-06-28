@@ -8,8 +8,8 @@ export const Webfunctions = async (Main) => {
                 console.error('id="favicon" not found.');
                 return;
             }
-            const lightModeFaviconPath = '/assists/FavIcons/lightmode.svg';
-            const darkModeFaviconPath = '/assists/FavIcons/darkmode.svg';
+            const lightModeFaviconPath = '/assets/FavIcons/lightmode.svg';
+            const darkModeFaviconPath = '/assets/FavIcons/darkmode.svg';
             const checkFaviconExists = async (path) => {
                 try {
                     const response = await fetch(path, { method: 'HEAD' });

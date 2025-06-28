@@ -1,5 +1,5 @@
 (()=>{
-    let isReloading=false,lastTimestamp=0,stats={requests:0,errors:0};
+    let isReloading=false,lastTimestamp=0,stats={requests:0,errors:0,totalTime:0,avgTime:0};
     
     const controller=new AbortController();
     const signal=controller.signal;
@@ -23,7 +23,8 @@
             
             if(data.reload&&data.timestamp!==lastTimestamp){
                 isReloading=true;
-                console.log('File changed, reloading... (Memory: '+data.memory_usage+' bytes)');
+                const reloadTime=performance.now()-startTime;
+                console.log(`File changed, reloading... (Memory: ${data.memory_usage} bytes, Response: ${reloadTime.toFixed(2)}ms)`);
                 controller.abort();
                 requestAnimationFrame(()=>location.reload());
                 return;
@@ -36,18 +37,23 @@
             }
         }
         
+        const endTime=performance.now();
+        const requestTime=endTime-startTime;
+        stats.totalTime+=requestTime;
+        stats.avgTime=stats.totalTime/stats.requests;
+        
         if(stats.requests%10===0){
-            const endTime=performance.now();
-            // console.log(`Stats: ${stats.requests} requests, ${stats.errors} errors, last check: ${(endTime-startTime).toFixed(2)}ms`);
+            console.log(`Live Reload Stats: ${stats.requests} requests, ${stats.errors} errors, Avg: ${stats.avgTime.toFixed(2)}ms, Last: ${requestTime.toFixed(2)}ms`);
         }
     };
     
     const interval=setInterval(checkForUpdates,500);
-    console.log('Live reload enabled with performance monitoring');
+    console.log('Live reload enabled with enhanced performance monitoring');
     
     const cleanup=()=>{
         clearInterval(interval);
         controller.abort();
+        console.log(`Final Stats: ${stats.requests} requests, ${stats.errors} errors, Avg response: ${stats.avgTime.toFixed(2)}ms`);
     };
     
     window.addEventListener('beforeunload',cleanup,{once:true});

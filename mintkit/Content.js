@@ -202,7 +202,7 @@ export const WebContent = {
             const displayPath = pathFile || this.PathFile;    // parameter this.PathFile into default
             return `
                 <div class="IntroduceContent">
-                    <img src="/assists/MintLogoPage.svg" alt="Mintkit MintLogo MintTeamsLogo">
+                    <img src="/assets/MintLogoPage.svg" alt="Mintkit MintLogo MintTeamsLogo">
                     <h1>
                         This is, <strong>${this.Name}</strong> <br>
                         Framework that make you <br>

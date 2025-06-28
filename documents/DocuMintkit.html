@@ -1,0 +1,490 @@
+<!-- 
+  This files generate by Mintputs built with Mint teams
+  Check out: https://github.com/Peakk2011/MintPuts
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mintkit Documentation</title>
+    <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=Anuphan:wght@400;600;700&display=swap');
+
+:root {
+  --text: #000;
+  --background: #faf9f5;
+  --muted: #666;
+  --border: #a7a6a3;
+  --code-bg: #eae9e5;
+  --heading-border: #a7a6a3;
+  --Links: color:rgb(50, 50, 153);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #f4f4f4;
+    --background: #141414;
+    --muted: #999;
+    --border: #343434;
+    --code-bg: #1f1f1f;
+    --heading-border: #333;
+    --Links: color:rgb(108, 108, 243);
+  }
+}
+
+body {
+  font-family: 'Inter Tight', 'Anuphan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2.5rem;
+  line-height: 1.75;
+  color: var(--text);
+  background-color: var(--background);
+}
+
+p {
+  margin: 0 0 1.5rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25; 
+}
+
+h1 {
+  font-size: 2em;
+  border-bottom: 1px solid var(--heading-border);
+  padding-bottom: 10px;
+}
+
+h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--heading-border);
+  padding-bottom: 8px;
+}
+
+h3 { font-size: 1.7em; }
+h4 { font-size: 1.425em; }
+h5 { font-size: 1.245em; }
+h6 { font-size: 1em; }
+
+a {
+  color: var(--Links);
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+a:hover, a:focus {
+  color: var(--muted);
+}
+
+code {
+  background: var(--code-bg);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
+  font-size: 0.95em;
+}
+
+pre {
+  background: var(--code-bg);
+  padding: 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 0 0 1.5rem;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.95em;
+  color: inherit;
+}
+
+blockquote {
+  border-left: 4px solid var(--border);
+  margin: 0 0 1.5rem;
+  padding-left: 16px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+ul, ol {
+  margin: 0 0 1.5rem 1.5rem;
+  padding: 0;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+li > ul, li > ol {
+  margin-top: 0.5rem;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+th, td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+th {
+  background: var(--code-bg);
+  font-weight: 600;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1rem auto;
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 1.5rem;
+  }
+}
+    </style>
+</head>
+<body>
+<h1 id="mintkit-js-framework-documentation">Mintkit.js Framework Documentation</h1>
+
+<h2 id="about-mintkit">📚 About Mintkit</h2>
+
+<p>Mintkit is a comprehensive JavaScript framework designed to streamline web development by providing dynamic content management capabilities in a single, unified solution. It simplifies the website creation process while maintaining flexibility and performance, allowing you to focus on creating innovative web applications.</p>
+
+<h2 id="key-features">🚀 Key Features</h2>
+
+<h3 id="core-framework-components">🔧 Core Framework Components</h3>
+<ul><li><strong>State Management</strong>: Reactive state system with automatic re-rendering</li><li><strong>Virtual DOM</strong>: Efficient DOM diffing and patching</li><li><strong>Component System</strong>: Modular component architecture</li><li><strong>Theme System</strong>: Built-in light/dark theme switching</li><li><strong>Live Reload</strong>: Development server with hot reloading</li><li><strong>MintAssembly</strong>: HTML-based programming language emulating Assembly</li></ul>
+
+<h3 id="design-system">🎨 Design System</h3>
+<ul><li><strong>Typography</strong>: Comprehensive font system with Google Fonts integration</li><li><strong>Spacing</strong>: Consistent spacing scale (0-32rem)</li><li><strong>Colors</strong>: Theme-aware color system</li><li><strong>Shadows</strong>: Multiple shadow presets</li><li><strong>Transitions</strong>: Smooth animation system</li><li><strong>Breakpoints</strong>: Responsive design breakpoints</li></ul>
+
+<h2 id="project-structure">📁 Project Structure</h2>
+
+<pre class="hljs"><code class="language-javascript">Mintkit.js Framework<span class="hljs-operator">/</span>
+├── mintkit<span class="hljs-operator">/</span>                    # Core framework
+│   ├── lib<span class="hljs-operator">/</span>                   # Library files
+│   │   ├── MintUtils.js       # Core utilities
+│   │   ├── HTMLInterpreter.js # MintAssembly interpreter
+│   │   └── mint.js           # Main <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>export<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> file
+│   ├── Content.js            # Content and styling
+│   ├── EventHandle.js        # Event handling
+│   ├── app.js               # Main application
+│   ├── index.html           # Entry point
+│   └── live<span class="hljs-operator">-</span>reload.js       # Development server
+├── mintkit<span class="hljs-operator">-</span>electron<span class="hljs-operator">/</span>         # Electron desktop app
+├── mintkit<span class="hljs-operator">-</span>purehtml<span class="hljs-operator">/</span>         # Pure HTML example
+├── mintAssembly<span class="hljs-operator">/</span>            # Assembly language tools
+└── documents<span class="hljs-operator">/</span>               # Documentation</code></pre>
+
+<h2 id="getting-started">🛠️ Getting Started</h2>
+
+<h3 id="1-basic-setup">1. Basic Setup</h3>
+
+<p>Create your main HTML file:</p>
+
+<pre class="hljs"><code class="language-html">&lt;!doctype html&gt;
+&lt;html <span class="<span">"hljs-attr"</span>&gt;lang=<span class="hljs-string">"en"</span>&gt;
+&lt;head&gt;
+  &lt;meta <span class="<span">"hljs-attr"</span>&gt;charset=<span class="hljs-string">"UTF-8"</span> /&gt;
+  &lt;meta <span class="<span">"hljs-attr"</span>&gt;name=<span class="hljs-string">"viewport"</span> <span class="<span">"hljs-attr"</span>&gt;content=<span class="hljs-string">"width=device-width, <span class="</span>hljs-attr<span class=" hljs-string"="">"&gt;initial-scale</span>=1.0"</span> /&gt;
+  &lt;div <span class="<span">"hljs-attr"</span>&gt;id=<span class="hljs-string">"Title"</span>&gt;&lt;/div&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div <span class="<span">"hljs-attr"</span>&gt;id=<span class="hljs-string">"app"</span>&gt;&lt;/div&gt;
+  &lt;script <span class="<span">"hljs-attr"</span>&gt;src=<span class="hljs-string">"app.js"</span> <span class="<span">"hljs-attr"</span>&gt;type=<span class="hljs-string">"module"</span> async&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+<h3 id="2-import-framework">2. Import Framework</h3>
+
+<p>Create <code>mint.js</code> to import framework functions:</p>
+
+<pre class="hljs"><code class="language-javascript"><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>import<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> { 
+    createState,
+    AdjustHook, 
+    injectCSS,
+    injectHTML,
+    injectTitle
+} from <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'.<span class="hljs-operator">/</span>MintUtils.js'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>;
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>import<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> { MintAssembly } from <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'.<span class="hljs-operator">/</span>HTMLInterpreter.js'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>;</p>
+
+</code><p><code class="language-javascript"><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>export<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> Mint <span class="hljs-operator">=</span> {
+    createState,
+    AdjustHook,
+    injectCSS,
+    injectHTML,
+    injectTitle,
+    MintAssembly
+};</code></p></pre><p></p>
+
+<h3 id="3-create-content">3. Create Content</h3>
+
+<p>Define your content in <code>Content.js</code>:</p>
+
+<pre class="hljs"><code class="language-javascript"><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>export<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> WebElements <span class="hljs-operator">=</span> {
+    <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Typography system<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+    StoredFontFamily<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"@<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>hljs<span class="hljs-operator">-</span>keyword<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"<span class="hljs-operator">&gt;</span>import<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>url<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(('https<span class="hljs-operator">:</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span>fonts.googleapis.com<span class="hljs-operator">/</span>css2<span class="hljs-operator">?</span>family<span class="hljs-operator">=</span>Inter<span class="hljs-operator">+</span>Tight<span class="hljs-operator">:</span>wght@<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>100<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>..<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>900<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&amp;</span>amp;display<span class="hljs-operator">=</span>swap');"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+    Typeface<span class="hljs-operator">:</span> [
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'"Inter Tight", sans<span class="hljs-operator">-</span>serif;'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'"JetBrains Mono", monospace;'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+    ],
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Spacing system<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+    spacing<span class="hljs-operator">:</span> {
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>0<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>0<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>1<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>0<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>.25rem'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,     <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> 4px<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>2<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>0<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>.5rem'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,      <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> 8px<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>4<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'1rem'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> 16px<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>8<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'2rem'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> 32px<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+    },</p>
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Color system<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+    breakpoints<span class="hljs-operator">:</span> { 
+        sm<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'450px'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,
+        md<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'768px'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,
+        lg<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'1024px'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,
+        xl<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'1280px'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+    }
+};</p>
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>export<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> WebContent <span class="hljs-operator">=</span> {
+    PageTitle<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'My Mintkit App'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,</p>
+
+<p>HTMLContent<span class="hljs-operator">:</span> {
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>Introduce<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(() {
+            <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>return<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span><code>
+                <span class="hljs-operator">&amp;</span>lt;div <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&gt;</span>class<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">=</span>"introduce"<span class="hljs-operator">&amp;</span>gt;
+                    <span class="hljs-operator">&amp;</span>lt;h1<span class="hljs-operator">&amp;</span>gt;Welcome to Mintkit<span class="hljs-operator">&amp;</span>lt;<span class="hljs-operator">/</span>h1<span class="hljs-operator">&amp;</span>gt;
+                    <span class="hljs-operator">&amp;</span>lt;p<span class="hljs-operator">&amp;</span>gt;Dynamic content management made simple<span class="hljs-operator">&amp;</span>lt;<span class="hljs-operator">/</span>p<span class="hljs-operator">&amp;</span>gt;
+                <span class="hljs-operator">&amp;</span>lt;<span class="hljs-operator">/</span>div<span class="hljs-operator">&amp;</span>gt;
+            </code><span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>;
+        }
+    },</p>
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>ElementComponents<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(() {
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>return<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>this<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>.HTMLContent.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>Introduce<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(();
+    },</p>
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>StyledElementComponents<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(() {
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>return<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span><code>
+            .introduce {
+                text<span class="hljs-operator">-</span>align<span class="hljs-operator">:</span> center;
+                padding<span class="hljs-operator">:</span> ${WebElements.spacing[<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>8<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>]};
+            }</code></p><code>
+
+</code></code><p><code class="language-javascript"><code>.introduce h1 {
+                font<span class="hljs-operator">-</span>family<span class="hljs-operator">:</span> ${WebElements.Typeface[<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>0<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>]};
+                font<span class="hljs-operator">-</span>size<span class="hljs-operator">:</span> 2rem;
+                margin<span class="hljs-operator">-</span>bottom<span class="hljs-operator">:</span> ${WebElements.spacing[<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>4<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>]};
+            }
+        </code><span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>;
+    }
+};</code></p></pre><p></p>
+
+<h3 id="4-initialize-application">4. Initialize Application</h3>
+
+<p>Create <code>app.js</code> to start your application:</p>
+
+<pre class="hljs"><code class="language-javascript"><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>import<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> { Mint } from <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'.<span class="hljs-operator">/</span>lib<span class="hljs-operator">/</span>mint.js'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>;
+<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>import<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> { WebContent, WebElements } from <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'.<span class="hljs-operator">/</span>Content.js'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>;
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> ROOT <span class="hljs-operator">=</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'#app'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>;
+<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> cache <span class="hljs-operator">=</span> {
+    target<span class="hljs-operator">:</span> document.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>querySelector<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>((ROOT),
+    css<span class="hljs-operator">:</span> null,
+    html<span class="hljs-operator">:</span> null
+};</p>
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Generate stylesheet<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> generateStylesheet <span class="hljs-operator">=</span> () <span class="hljs-operator">=</span><span class="hljs-operator">&amp;</span>gt; {
+    <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>if<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> (<span class="hljs-operator">!</span>cache.css) {
+        cache.css <span class="hljs-operator">=</span> WebContent.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>StyledElementComponents<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(();
+    }
+    <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>return<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> cache.css;
+};</p>
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Main state<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> Main <span class="hljs-operator">=</span> Mint.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>createState<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(({});</p>
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Render <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>function<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> render <span class="hljs-operator">=</span> () <span class="hljs-operator">=</span><span class="hljs-operator">&amp;</span>gt; {
+    <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> html <span class="hljs-operator">=</span> WebContent.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>ElementComponents<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(();
+    <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> css <span class="hljs-operator">=</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>generateStylesheet<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(();</p>
+
+<p>Mint.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>injectCSS<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>((css);
+    Mint.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>injectHTML<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>((ROOT, html);
+    Mint.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>injectTitle<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>((<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span><code><span class="hljs-operator">&amp;</span>lt;title<span class="hljs-operator">&amp;</span>gt;${WebContent.PageTitle}<span class="hljs-operator">&amp;</span>lt;<span class="hljs-operator">/</span>title<span class="hljs-operator">&amp;</span>gt;</code><span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>);
+};</p>
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Subscribe to state changes<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+Main.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>subscribe<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>((render);</p>
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Initialize<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> init <span class="hljs-operator">=</span> () <span class="hljs-operator">=</span><span class="hljs-operator">&amp;</span>gt; {
+    <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Inject fonts<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+    <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>if<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> (WebElements.StoredFontFamily) {
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> fontStyle <span class="hljs-operator">=</span> document.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>createElement<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>((<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'style'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>);
+        fontStyle.textContent <span class="hljs-operator">=</span> WebElements.StoredFontFamily;
+        document.head.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>appendChild<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>((fontStyle);
+    }</p>
+
+<p>Main.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>set<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(({});
+};</p>
+
+</code><p><code class="language-javascript"><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Start when DOM is ready<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>if<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> (document.readyState <span class="hljs-operator">=</span><span class="hljs-operator">=</span><span class="hljs-operator">=</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'complete'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>) {
+    <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>init<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(();
+} <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>else<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> {
+    document.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>addEventListener<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>((<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'DOMContentLoaded'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>, init);
+}</code></p></pre><p></p>
+
+<h2 id="advanced-features">🎨 Advanced Features</h2>
+
+<h3 id="state-management">State Management</h3>
+
+<pre class="hljs"><code class="language-javascript"><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> state <span class="hljs-operator">=</span> Mint.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>createState<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(({
+    count<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>0<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,
+    user<span class="hljs-operator">:</span> { name<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'John'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> }
+});
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Update state<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+state.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>set<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>((s <span class="hljs-operator">=</span><span class="hljs-operator">&amp;</span>gt; ({ ...s, count<span class="hljs-operator">:</span> s.count <span class="hljs-operator">+</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>1<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> }));</p>
+
+</code><p><code class="language-javascript"><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Subscribe to changes<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+state.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>subscribe<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(((newState) <span class="hljs-operator">=</span><span class="hljs-operator">&amp;</span>gt; {
+    console.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>log<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>((<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'State updated<span class="hljs-operator">:</span>'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>, newState);
+});</code></p></pre><p></p>
+
+<h3 id="theme-system">Theme System</h3>
+
+<pre class="hljs"><code class="language-javascript"><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> lightTheme <span class="hljs-operator">=</span> {
+    ColorPrimary<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'#FFFFFF'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,
+    TextColorPrimary<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'#<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>080707<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,
+    HighlightPrimary<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'#ffe9e9'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+};
+
+<p><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> darkTheme <span class="hljs-operator">=</span> {
+    ColorPrimary<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'#<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>000000<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,
+    TextColorPrimary<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'#FFD9D9'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>,
+    HighlightPrimary<span class="hljs-operator">:</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>'#413c3c'<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+};</p>
+
+</code><p><code class="language-javascript"><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>comment"<span class="hljs-operator">&gt;</span><span class="hljs-operator">/</span><span class="hljs-operator">/</span> Theme automatically switches based on system preference<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>
+WebContent.<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>initThemeSystem<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(();</code></p></pre><p></p>
+
+<h3 id="mintassembly-programming">MintAssembly Programming</h3>
+
+<p>MintAssembly is an HTML-based programming language that emulates Assembly:</p>
+
+<pre class="hljs"><code class="language-html">&lt;Entry&gt;
+    &lt;mov <span class="<span">"hljs-attr"</span>&gt;dst=<span class="hljs-string">"ax"</span> <span class="<span">"hljs-attr"</span>&gt;src=<span class="hljs-string">"200"</span>&gt;&lt;/mov&gt;
+    &lt;mov <span class="<span">"hljs-attr"</span>&gt;dst=<span class="hljs-string">"bx"</span> <span class="<span">"hljs-attr"</span>&gt;src=<span class="hljs-string">"100"</span>&gt;&lt;/mov&gt;
+    &lt;add <span class="<span">"hljs-attr"</span>&gt;dst=<span class="hljs-string">"ax"</span> <span class="<span">"hljs-attr"</span>&gt;src=<span class="hljs-string">"bx"</span>&gt;&lt;/add&gt;
+    &lt;print <span class="<span">"hljs-attr"</span>&gt;var=<span class="hljs-string">"ax"</span>&gt;&lt;/print&gt;
+&lt;/Entry&gt;</code></pre>
+
+<h3 id="component-system">Component System</h3>
+
+<pre class="hljs"><code class="language-javascript"><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>const<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> Component <span class="hljs-operator">=</span> {
+    <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>render<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>((props) {
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>return<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span><code>
+            <span class="hljs-operator">&amp;</span>lt;div <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&gt;</span>class<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">=</span>"component"<span class="hljs-operator">&amp;</span>gt;
+                <span class="hljs-operator">&amp;</span>lt;h2<span class="hljs-operator">&amp;</span>gt;${props.title}<span class="hljs-operator">&amp;</span>lt;<span class="hljs-operator">/</span>h2<span class="hljs-operator">&amp;</span>gt;
+                <span class="hljs-operator">&amp;</span>lt;p<span class="hljs-operator">&amp;</span>gt;${props.content}<span class="hljs-operator">&amp;</span>lt;<span class="hljs-operator">/</span>p<span class="hljs-operator">&amp;</span>gt;
+            <span class="hljs-operator">&amp;</span>lt;<span class="hljs-operator">/</span>div<span class="hljs-operator">&amp;</span>gt;
+        </code><span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>;
+    },
+
+</code><p><code class="language-javascript"><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>function"<span class="hljs-operator">&gt;</span>styles<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>(() {
+        <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span><span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span>"hljs<span class="hljs-operator">-</span>keyword"<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span>return<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span> <span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>string"<span class="hljs-operator">&gt;</span><code>
+            .component {
+                padding<span class="hljs-operator">:</span> ${WebElements.spacing[<span class="hljs-operator">&lt;</span>span class<span class="hljs-operator">=</span>"hljs<span class="hljs-operator">-</span>number"<span class="hljs-operator">&gt;</span>4<span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>]};
+                border<span class="hljs-operator">:</span> 1px solid #ccc;
+                border<span class="hljs-operator">-</span>radius<span class="hljs-operator">:</span> ${WebElements.borderRadius.DEFAULT};
+            }
+        </code><span class="hljs-operator">&lt;</span><span class="hljs-operator">/</span>span<span class="hljs-operator">&gt;</span>;
+    }
+};</code></p></pre><p></p>
+
+<h2 id="development-tools">🔧 Development Tools</h2>
+
+<h3 id="live-reload-server">Live Reload Server</h3>
+
+<p>Run the development server for hot reloading:</p>
+
+<pre class="hljs"><code class="language-bash"># Navigate to mintkit directory
+cd mintkit
+
+<h1 id="start-live-server">Start live server</h1>
+./LiveServer.exe
+<h1 id="or">or</h1>
+node live-reload.js</code></pre>
+
+<p>Then open <code>http://localhost:3000</code> in your browser.</p>
+
+<h3 id="electron-desktop-app">Electron Desktop App</h3>
+
+<p>For desktop applications:</p>
+
+<pre class="hljs"><code class="language-bash">cd mintkit-electron
+npm install
+npm start</code></pre>
+
+<h2 id="responsive-design">📱 Responsive Design</h2>
+
+<p>Use the built-in breakpoint system:</p>
+
+<pre class="hljs"><code class="language-css"><span class="hljs-selector">.introduce {</span>
+    <span class="hljs-property">padding<span class="hljs-value">:</span> ${WebElements.spacing[4]};</span>
+}
+
+</code><p><code class="language-css">@media (<span class="hljs-property">max-width<span class="hljs-value">:</span> ${WebElements.breakpoints.md}) {
+    <span class="hljs-selector">.introduce {</span>
+        <span class="hljs-property">padding:</span> ${WebElements.spacing[2]};</span>
+    }
+}</code></p></pre><p></p>
+
+<h2 id="best-practices">🎯 Best Practices</h2>
+
+<ol><li><strong>Component Organization</strong>: Keep components modular and reusable</li><li><strong>State Management</strong>: Use the reactive state system for dynamic content</li><li><strong>Styling</strong>: Leverage the design system for consistency</li><li><strong>Performance</strong>: Use the virtual DOM for efficient updates</li><li><strong>Development</strong>: Use live reload for faster development cycles</li></ol>
+
+<h2 id="contributing">🌟 Contributing</h2>
+
+<p>We welcome contributions to Mintkit! Here's how you can help:</p>
+
+<ol><li>Fork the repository</li><li>Create a feature branch</li><li>Make your changes</li><li>Test thoroughly</li><li>Submit a pull request</li></ol>
+
+<h2 id="license">📄 License</h2>
+
+<p>MIT License - see LICENSE file for details.</p>
+
+<h2 id="links">🔗 Links</h2>
+
+<ul><li><strong>GitHub</strong>: https://github.com/Peakk2011/Mintkit</li><li><strong>CDN</strong>: https://cdn.jsdelivr.net/gh/Peakk2011/Mint_NextgenJS@main/lib/MintUtils.js</li><li><strong>Documentation</strong>: This file and README.md</li></ul>
+
+<p>---</p>
+
+<p><strong>Mintkit</strong> - Making web development dynamic and enjoyable! 🚀</p>
+</body>
+</html>
