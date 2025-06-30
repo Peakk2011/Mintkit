@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mintkit - Framework that make you adjust content more dynamic</title>
+</head>
+
+<body>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=Anuphan:wght@400;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --colorBG: #faf9f5;
+            --sidebar-bg: rgba(255, 255, 255, 0.75);
+            --sidebar-blur: 18px;
+            --sidebar-text: #222;
+            --sidebar-border: #e0e0e0;
+            --sidebar-link: #2a4b8d;
+            --sidebar-link-active: #fff;
+            --sidebar-link-bg-active: #2a4b8d;
+            --sidebar-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --colorBG: #0f0f0f;
+                --sidebar-bg: rgba(14, 14, 14, 0.700);
+                --sidebar-text: #f4f4f4;
+                --sidebar-border: #333;
+                --sidebar-link: #c4c4c4;
+                --sidebar-link-active: #fff;
+                --sidebar-link-bg-active: #1e1e1e;
+                --sidebar-shadow: 0 2px 16px rgba(0, 0, 0, 0.32);
+            }
+        }
+
+        body,
+        html {
+            background-color: var(--colorBG);
+            font-family: 'Inter Tight', 'Anuphan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .sidebar {
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            backdrop-filter: blur(var(--sidebar-blur));
+            -webkit-backdrop-filter: blur(var(--sidebar-blur));
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 270px;
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            border-right: 1px solid var(--sidebar-border);
+            box-shadow: var(--sidebar-shadow);
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(.4, 0, .2, 1);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.2rem 1.2rem 0.5rem 1.2rem;
+        }
+
+        .sidebar-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .sidebar-close {
+            background: none;
+            border: none;
+            font-size: 1.8rem;
+            color: var(--sidebar-text);
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            padding: 0.85rem 0.5rem;
+            gap: 0.25rem;
+        }
+
+        .sidebar-nav a {
+            color: var(--sidebar-link);
+            text-decoration: none;
+            padding: 0.6em 0.7em;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: background 0.18s, color 0.18s;
+        }
+
+        .sidebar-nav a:hover,
+        .sidebar-nav a.active {
+            background: var(--sidebar-link-bg-active);
+            color: var(--sidebar-link-active);
+            opacity: 80%;
+        }
+
+        #Highlight {
+            background: var(--sidebar-link-bg-active);
+            color: var(--sidebar-link-active);
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 1.2rem;
+            left: 1.2rem;
+            z-index: 1100;
+            background: transparent;
+            color: var(--sidebar-text);
+            border: transparent;
+            border-radius: 6px;
+            font-size: 2rem;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--sidebar-shadow);
+            transition: background 0.18s, color 0.18s;
+        }
+
+        .PageContent {
+            position: fixed;
+            right: 0;
+        }
+
+        .PageContent iframe {
+            height: 100vh;
+            width: calc(100vw - 270px);
+        }
+
+        @media (min-width: 900px) {
+            .sidebar {
+                transform: translateX(0);
+            }
+
+            .sidebar-toggle {
+                display: none;
+            }
+        }
+
+        body.sidebar-open {
+            overflow: hidden;
+        }
+
+        @media (max-width: 899px) {
+            .sidebar {
+                transition: transform 0.3s cubic-bezier(.4, 0, .2, 1);
+            }
+        }
+    </style>
+
+    <!-- Sidebar Drawer -->
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Mintkit Docs</span>
+            <button id="sidebar-close" class="sidebar-close" aria-label="Close">&times;</button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#mintkit-js-framework-documentation" id="Highlight">Home</a>
+            <a href="#getting-started">Getting Started</a>
+            <a href="#core-framework-components">Core Features</a>
+            <a href="#design-system">Design System</a>
+            <a href="#project-structure">Project Structure</a>
+            <a href="#development-tools">Dev Tools</a>
+            <a href="#best-practices">Best Practices</a>
+            <a href="#contributing">Contributing</a>
+            <a href="#links">Links</a>
+        </nav>
+    </aside>
+    <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Open Menu">&#9776;</button>
+
+    <div class="PageContent">
+        <iframe src="./DocuMintkit.html" frameborder="0"></iframe>
+    </div>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebarClose = document.getElementById('sidebar-close');
+
+        function openSidebar() {
+            sidebar.classList.add('open');
+            document.body.classList.add('sidebar-open');
+        }
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            document.body.classList.remove('sidebar-open');
+        }
+        sidebarToggle.addEventListener('click', openSidebar);
+        sidebarClose.addEventListener('click', closeSidebar);
+        // Close on click outside (mobile)
+        window.addEventListener('click', e => {
+            if (
+                sidebar.classList.contains('open') &&
+                !sidebar.contains(e.target) &&
+                e.target !== sidebarToggle
+            ) closeSidebar();
+        });
+        // Optional: highlight active link
+        document.querySelectorAll('.sidebar-nav a').forEach(link => {
+            if (window.location.hash && link.getAttribute('href') === window.location.hash) {
+                link.classList.add('active');
+            }
+            link.addEventListener('click', () => closeSidebar());
+        });
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,681 @@
+<!-- 
+  This files generate by Mintputs built with Mint teams
+  Check out: https://github.com/Peakk2011/MintPuts
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mintkit - Liveserver</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=Anuphan:wght@400;600;700&display=swap');
+
+    :root {
+      --text: #000;
+      --background: #faf9f5;
+      --muted: #666;
+      --border: #a7a6a3;
+      --code-bg: #eae9e5;
+      --heading-border: #a7a6a3;
+      --Links: color:rgb(50, 50, 153);
+      --Mintkitdocu: #000;
+      --Mintkitdocu_Color: #faf9f5;
+      --FrameBorder: #b6b5b1;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #f4f4f4;
+        --background: #0f0f0f;
+        --muted: #999;
+        --border: #363636;
+        --code-bg: #1e1e1e;
+        --heading-border: #333;
+        --Links: color:rgb(108, 108, 243);
+        --Mintkitdocu: #1e1e1e;
+        --Mintkitdocu_Color: #c2c2c2;
+        --FrameBorder: #383838;
+      }
+    }
+
+    body {
+      font-family: 'Inter Tight', 'Anuphan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 2.5rem;
+      line-height: 1.75;
+      color: var(--text);
+      background-color: var(--background);
+      animation: fadeIn 500ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    p {
+      margin: 0 0 1.5rem;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      margin-top: 24px;
+      margin-bottom: 16px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    h1 {
+      font-size: 2em;
+      border-bottom: 1px solid var(--heading-border);
+      padding-bottom: 10px;
+    }
+
+    h2 {
+      font-size: 1.5em;
+      border-bottom: 1px solid var(--heading-border);
+      padding-bottom: 8px;
+    }
+
+    h3 {
+      font-size: 1.7em;
+    }
+
+    h4 {
+      font-size: 1.425em;
+    }
+
+    h5 {
+      font-size: 1.245em;
+    }
+
+    h6 {
+      font-size: 1em;
+    }
+
+    a {
+      color: var(--Links);
+      text-decoration: underline;
+      transition: color 0.2s ease;
+    }
+
+    a:hover,
+    a:focus {
+      color: var(--muted);
+    }
+
+    code {
+      background: var(--code-bg);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
+      font-size: 0.95em;
+    }
+
+    pre {
+      background: var(--code-bg);
+      padding: 18px;
+      border-radius: 10px;
+      overflow-x: auto;
+      margin: 0 0 1.5rem;
+      outline: solid 1px var(--FrameBorder);
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      border-radius: 0;
+      font-size: 0.95em;
+      color: inherit;
+    }
+
+    blockquote {
+      border-left: 4px solid var(--border);
+      margin: 0 0 1.5rem;
+      padding-left: 16px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    ul,
+    ol {
+      margin: 0 0 1.5rem 1.5rem;
+      padding: 0;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+    }
+
+    li>ul,
+    li>ol {
+      margin-top: 0.5rem;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2rem 0;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+    }
+
+    th {
+      background: var(--code-bg);
+      font-weight: 600;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 1rem auto;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 1.5rem;
+      }
+    }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(120, 120, 120, 0.25);
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+      transition: background 0.2s;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(120, 120, 120, 0.45);
+    }
+
+    ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(120, 120, 120, 0.25) transparent;
+    }
+
+    #mintkit-liveserver-br-built-with-mint-teams code {
+      font-family: "Inter Tight", Arial, Helvetica, sans-serif;
+      font-weight: 500;
+      font-size: 26px;
+      border-bottom: 0px solid transparent;
+      width: fit-content;
+      display: flex;
+      align-items: center;
+      background-color: transparent;
+      padding: 0%;
+    }
+
+    #mintkit-liveserver-br-built-with-mint-teams svg {
+      width: 30px;
+      height: 30px;
+      margin-right: 0.5rem;
+      margin-left: 0.5rem;
+      transform: translateY(6px);
+    }
+
+    #mintkit-liveserver-br-built-with-mint-teams {
+      line-height: 1.85;
+      margin-top: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+
+<body>
+  <h1 id="mintkit-liveserver-br-built-with-mint-teams">Mintkit LiveServer<br><code>Built with   <div class="MintkitLogo">
+    <svg width="83" height="83" viewBox="0 0 83 83" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="32.9609" y="73.8955" width="17.0197" height="8.61755" fill="var(--text)" />
+      <rect x="32.9609" width="17.0197" height="8.61755" fill="var(--text)" />
+      <rect x="49.5488" y="65.709" width="8.83299" height="8.61755" fill="var(--text)" />
+      <rect x="66.1367" y="49.3345" width="8.40211" height="8.61755" fill="var(--text)" />
+      <rect x="57.9551" y="57.5215" width="8.61755" height="8.61755" fill="var(--text)" />
+      <rect x="74.1113" y="33.1768" width="8.61755" height="16.3734" fill="var(--text)" />
+      <rect y="32.9609" width="8.61755" height="16.5888" fill="var(--text)" />
+      <rect x="65.9219" y="24.9907" width="8.61755" height="8.40211" fill="var(--text)" />
+      <rect width="8.61755" height="8.40211" transform="matrix(-1 0 0 1 16.8027 24.9907)" fill="var(--text)" />
+      <rect width="8.61755" height="8.40211" transform="matrix(-1 0 0 1 16.8027 49.3345)" fill="var(--text)" />
+      <rect width="8.61755" height="8.40211" transform="matrix(-1 0 0 1 24.9922 57.7383)" fill="var(--text)" />
+      <rect width="8.61755" height="8.40211" transform="matrix(-1 0 0 1 32.9609 65.9238)" fill="var(--text)" />
+      <rect x="57.7383" y="16.5874" width="8.83299" height="8.61755" fill="var(--text)" />
+      <rect width="8.83299" height="8.61755" transform="matrix(-1 0 0 1 24.9922 16.5874)" fill="var(--text)" />
+      <rect x="49.5488" y="8.61719" width="8.83299" height="8.40211" fill="var(--text)" />
+      <rect width="8.83299" height="8.40211" transform="matrix(-1 0 0 1 33.1758 8.61719)" fill="var(--text)" />
+      <path
+        d="M37.162 57.8451H45.4564V49.443H49.6574V41.2563H45.1332V45.8883H38.2392V41.2563H32.9609V49.443H37.162V57.8451Z"
+        fill="var(--text)" stroke="var(--text)" />
+      <path d="M32.8507 33.0697H24.6641V41.2564H32.8507V33.0697Z" fill="var(--text)" />
+      <path d="M49.655 41.2564H58.0571V33.0697H49.655V41.2564Z" fill="var(--text)" />
+      <path d="M49.655 33.0697V24.9907H32.8507V33.0697H49.655Z" fill="var(--text)" />
+      <path
+        d="M49.655 33.0697H58.0571V41.2564H49.655V33.0697ZM49.655 33.0697V24.9907H32.8507V33.0697M49.655 33.0697H32.8507M32.8507 33.0697H24.6641V41.2564H32.8507V33.0697Z"
+        stroke="var(--text)" />
+    </svg>
+  </div>Mint teams</code></h1>
+
+  <p style="margin-bottom: 2rem; margin-top: 1.6rem;">A high-performance, cross-platform live development server written in C and C++ with inline Assembly with native
+    GUI support for Windows, Linux, and macOS.</p>
+
+  <span style="
+    padding: 0.5rem 1rem;
+    background-color: var(--Mintkitdocu);
+      outline: solid 1px var(--FrameBorder);
+    color: var(--Mintkitdocu_Color);
+    border-radius: 100vmax;
+  ">Liveserver Features</span>
+
+  <h3 id="core-features">Core Features</h3>
+  <ul>
+    <li><strong>Real-time file change detection</strong> with line-by-line diff</li>
+    <li><strong>High-resolution timing</strong> for performance monitoring (microsecond precision)</li>
+    <li><strong>Hot reload</strong> with detailed timing statistics</li>
+    <li><strong>Cross-platform GUI</strong> with native look</li>
+  </ul>
+
+  <h3 id="file-watching">File Watching</h3>
+  <ul>
+    <li>Tracks HTML, CSS, JS, JSON, TS, TSX, JSX files</li>
+    <li>Shows added (+), removed (-), and modified (~) lines</li>
+    <li>File processing time tracking per file</li>
+    <li>Server response time monitoring</li>
+  </ul>
+
+  <h3 id="http-endpoints">HTTP Endpoints</h3>
+  <ul>
+    <li><code>/</code> - Serves static files</li>
+    <li><code>/reload</code> - Hot reload status endpoint</li>
+    <li><code>/memory-stats</code> - Memory usage statistics</li>
+    <li><code>/live-reload.js</code> - Live reload client script</li>
+  </ul>
+
+  <h2 id="installation">Installation</h2>
+
+  <h3 id="prerequisites">Prerequisites</h3>
+
+  <h4 id="windows">Windows</h4>
+  <ul>
+    <li>MSYS2 or MinGW-w64 with GCC</li>
+    <li>Required libraries: ws2_32, shell32, dwmapi, comctl32</li>
+  </ul>
+
+  <h4 id="linux">Linux</h4>
+  <ul>
+    <li>GCC 7+ with C++17 support</li>
+    <li>GTK+ 3.0 development libraries</li>
+    <li>pkg-config</li>
+  </ul>
+
+  <h4 id="macos">macOS</h4>
+  <ul>
+    <li>Xcode Command Line Tools or GCC</li>
+    <li>CoreFoundation and ApplicationServices frameworks</li>
+  </ul>
+
+  <h3 id="building">Building</h3>
+
+  <h4 id="compilation">Compilation</h4>
+
+  <p><strong>Windows:</strong>
+  </p>
+  <pre
+    class="hljs"><code class="language-bash">g++ -std=c++17 -O2 LiveServer.cpp -o LiveServer.exe -lws2_32 -lshell32 -ldwmapi -lcomctl32 -mwindows</code></pre>
+  <p></p>
+
+  <p><strong>Linux:</strong>
+  </p>
+  <pre
+    class="hljs"><code class="language-bash"># Install dependencies first
+sudo apt-get install build-essential libgtk-3-dev pkg-config<p></p>
+# Compile
+g++ -std=c++17 -O2 LiveServer.cpp -o LiveServer $(pkg-config --libs gtk+-3.0 gdk-3.0 gio-2.0 gobject-2.0 glib-2.0) $(pkg-config --cflags gtk+-3.0 gdk-3.0 gio-2.0 gobject-2.0 glib-2.0)</code></pre>
+
+  <p><strong>macOS:</strong>
+  </p>
+  <pre
+    class="hljs"><code class="language-bash">g++ -std=c++17 -O2 LiveServer.cpp -o LiveServer -framework CoreFoundation -framework ApplicationServices</code></pre>
+  <p></p>
+
+  <h4 id="recommend-options">Recommend Options</h4>
+  - Debug: -g -DDEBUG -Wall -Wextra
+  - Release: -O3 -DNDEBUG -Wall -Wextra
+  - Normal: -O2 -Wall -Wextra
+
+  <h2 id="usage">Usage</h2>
+
+  <h3 id="basic-usage">Basic Usage</h3>
+  <pre class="hljs"><code class="language-bash"># Start server on default port :3000
+./LiveServer
+# Define port with command like this
+./LiveServer 8080</code></pre>
+
+  <h3 id="command-line-options">Command Line Options</h3>
+  <ul>
+    <li><code>[port]</code> - Specify custom port number (default: 3000)</li>
+  </ul>
+
+  <h2 id="architecture">Architecture</h2>
+
+  <h3 id="core-components">Core Components</h3>
+
+  <ol>
+    <li><strong>Socket Class</strong> - Cross-platform socket wrapper</li>
+    <li><strong>MemoryPool Class</strong> - Efficient memory management</li>
+    <li><strong>GUI Class</strong> - Platform-specific GUI implementation</li>
+    <li><strong>HTTPServer Class</strong> - HTTP server with file serving</li>
+    <li><strong>Mintkit Framework</strong> - Main application coordinator</li>
+  </ol>
+
+  <h3 id="platform-implementations">Platform Implementations</h3>
+
+  <h4 id="windows">Windows</h4>
+  <ul>
+    <li>Win32 API for window management</li>
+    <li>Rich Edit control for text display</li>
+    <li>Dark mode support via DwmSetWindowAttribute</li>
+    <li>Native Windows socket API</li>
+  </ul>
+
+  <h4 id="linux">Linux</h4>
+  <ul>
+    <li>GTK+ 3.0 for GUI</li>
+    <li>TextView widget for text display</li>
+    <li>Native Linux socket API</li>
+    <li>pkg-config for dependency management</li>
+  </ul>
+
+  <h4 id="macos">macOS</h4>
+  <ul>
+    <li>Console output (GUI can be extended with Cocoa)</li>
+    <li>Native macOS socket API</li>
+    <li>CoreFoundation for system integration</li>
+  </ul>
+
+  <h2 id="performance-features">Performance Features</h2>
+
+  <h3 id="memory-management">Memory Management</h3>
+  <ul>
+    <li>Smart memory pool with automatic cleanup</li>
+    <li>Memory usage tracking and statistics</li>
+    <li>Efficient allocation/deallocation patterns</li>
+  </ul>
+
+  <h3 id="file-monitoring">File Monitoring</h3>
+  <ul>
+    <li>High-resolution file change detection</li>
+    <li>Line-by-line diff comparison</li>
+    <li>Performance timing for file operations</li>
+  </ul>
+
+  <h3 id="network-performance">Network Performance</h3>
+  <ul>
+    <li>Asynchronous client handling</li>
+    <li>Efficient HTTP response generation</li>
+    <li>Connection pooling and reuse</li>
+  </ul>
+
+  <h2 id="development">Development</h2>
+
+  <h3 id="contributing">Contributing</h3>
+  <ol>
+    <li>Fork the repository</li>
+    <li>Create a feature branch</li>
+    <li>Make your changes</li>
+    <li>Test on all target platforms</li>
+    <li>Submit a pull request</li>
+  </ol>
+
+  <h2 id="solving-problem-that-i-see">Solving problem that I see</h2>
+
+  <h3 id="common-issues">Common Issues</h3>
+
+  <h4 id="windows">Windows</h4>
+  <ul>
+    <li><strong>"ws2_32.lib not found"</strong>: Install MinGW-w64 with Win32 API support</li>
+    <li><strong>"dwmapi.lib not found"</strong>: Ensure you're using a recent MinGW-w64 version</li>
+  </ul>
+
+  <h4 id="linux">Linux</h4>
+  <ul>
+    <li><strong>"gtk+-3.0 not found"</strong>: Install GTK+ development libraries</li>
+    <li><strong>"pkg-config not found"</strong>: Install pkg-config package</li>
+  </ul>
+
+  <h4 id="macos">macOS</h4>
+  <ul>
+    <li><strong>"CoreFoundation not found"</strong>: Install Xcode Command Line Tools</li>
+    <li><strong>"ApplicationServices not found"</strong>: Ensure Xcode is properly installed</li>
+  </ul>
+
+  <h3 id="performance-issues">Performance Issues</h3>
+  <ul>
+    <li>Check available memory and disk space</li>
+    <li>Monitor CPU usage during file operations</li>
+    <li>Verify network connectivity for browser opening</li>
+  </ul>
+
+  <h3 id="gui-issues">GUI Issues</h3>
+  <ul>
+    <li>Ensure display server is running (Linux)</li>
+    <li>Check window manager compatibility</li>
+    <li>Verify font availability (Consolas)</li>
+  </ul>
+
+  <h2 id="version-history-about-this-liveserver">Version History (About this liveserver)</h2>
+
+  <h3 id="public-liveserver-cross-platform-c">Public liveserver (Cross-Platform C++)</h3>
+  <ul>
+    <li>Complete rewrite in C++17</li>
+    <li>Cross-platform GUI support</li>
+    <li>Enhanced memory management</li>
+    <li>Improved performance monitoring</li>
+    <li>Better error handling</li>
+  </ul>
+
+  <h3 id="classic-mintkit-original-c-windows-10-11-only">Classic Mintkit (Original C Windows 10-11 only)</h3>
+  <ul>
+    <li>Windows-only implementation</li>
+    <li>Basic file watching</li>
+    <li>Simple HTTP server</li>
+    <li>Console-based interface </li>
+  </ul>
+  <hr>
+  <span style="
+    padding: 0.5rem 1rem;
+    background-color: var(--Mintkitdocu);
+    color: var(--Mintkitdocu_Color);
+      outline: solid 1px var(--FrameBorder);
+    border-radius: 100vmax;
+  ">Performance monitoring</span>
+  <h1>Enhanced Performance<br>Monitoring for Mintkit</h1>
+  <h2>Overview</h2>
+  <p>
+    The MintPuts development server has been enhanced with comprehensive<br>
+    performance monitoring that replaces CPU cycle counting with high-resolution<br>
+    millisecond timing. This provides more accurate and meaningful performance metrics<br>
+    for development workflows.
+  </p>
+  <h2 style="margin-bottom: 0px; line-height: 2.5;">Key Changes</h2>
+  <div class="Key_Chenge" style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: solid 1px var(--border);
+    ">
+    <h2 style="
+        border-bottom: none;
+      ">Server Side Performance Monitoring</h2><code>WebExecute.c</code>
+  </div>
+
+  <b style="display: block; padding: 1rem 0rem;">Before:</b>
+  <ul>
+    <li>Used CPU cycles for performance measurement</li>
+    <li>Less accurate across different CPU architectures</li>
+    <li>Harder to interpret for developers</li>
+  </ul>
+  <b style="display: block; padding: 1rem 0rem;">After:</b>
+  <ul>
+    <li>Uses <code>QueryPerformanceCounter</code> and <br><code>QueryPerformanceFrequency</code>for high-resolution
+      timing</li>
+    <li>All measurements now in milliseconds (ms)</li>
+    <li>More accurate and cross-platform compatible</li>
+  </ul>
+  <b style="display: block; padding: 1rem 0rem;">Enhanced Features:</b>
+  <ul>
+    <li>File scan performance tracking</li>
+    <li>Request serving time measurement</li>
+    <li>Memory usage monitoring</li>
+    <li>Real-time performance logging</li>
+  </ul>
+
+  <div class="Key_Chenge" style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: solid 1px var(--border);
+        border-top: solid 1px var(--border);
+    ">
+    <h2 style="
+        border-bottom: none;
+      ">Client-Side Performance Monitoring</h2><code>live-reload.js</code>
+  </div>
+
+  <b style="display: block; padding: 1rem 0rem;">Enhanced Features:</b>
+  <ul>
+    <li>Detailed request timing statistics</li>
+    <li>Average response time calculation</li>
+    <li>Error tracking and reporting</li>
+    <li>Visual indicators with emojis for better readability</li>
+    <li>Performance stats every 10 requests</li>
+  </ul>
+
+  <div class="Key_Chenge" style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: solid 1px var(--border);
+        border-top: solid 1px var(--border);
+    ">
+    <h2 style="
+        border-bottom: none;
+      ">MintUtils Performance Tools</h2><code>MintUtils.js</code>
+  </div>
+
+  <h3>AdjustHook Enhancedment</h3>
+
+  <ul>
+    <li>Built-in perfornace monitoring</li>
+    <li>Configurable monitoring options</li>
+    <li>Detailed statistics tracking</li>
+    <li>Enhanced return object with stats and control methods</li>
+  </ul>
+
+  <pre class="hljs">
+<span class=<span class="hljs-string"></span>import</span> { PerformanceMonitor } from <span class="hljs-string">'./mintkit/MintUtils.js'</span>;
+
+<span class="hljs-comment">// Simple timing</span>
+PerformanceMonitor.<span class="hljs-function">start</span>((<span class="hljs-string">'operation'</span>);
+<span class="hljs-comment">// ... do work ...</span>
+PerformanceMonitor.<span class="hljs-function">end</span>((<span class="hljs-string">'operation'</span>);
+
+<span class="hljs-comment">// Function measurement</span>
+PerformanceMonitor.<span class="hljs-function">measure</span>((<span class="hljs-string">'dataProcessing'</span>, () =&gt; {
+    <span class="hljs-comment">// Your code here</span>
+    <span class=<span class="hljs-string">"hljs-keyword"</span>>return</span> result;
+});
+
+PerformanceMonitor.measureAsync(('apiCall', async () => {
+    const response = await fetch(('/api/data');
+    return response.json(();
+});
+  </pre>
+
+  <h3>ReloadPerformanceTracker</h3>
+
+  <pre class="hljs">
+import { ReloadPerformanceTracker } from './mintkit/MintUtils.js'
+// Record reload performance
+ReloadPerformanceTracker.recordReload((duration, fileCount, memoryUsage);
+// Get statistics
+const stats = ReloadPerformanceTracker.getStats();
+    </pre>
+
+  <h3>Basic Performance Monitoring</h3>
+
+  <pre class="hljs">
+<span class=<span class="hljs-string"></span>import</span> { AdjustHook, PerformanceMonitor } from <span class="hljs-string">'./mintkit/MintUtils.js'</span>;
+
+<span class="hljs-comment">// Enhanced hot reload with performance monitoring</span>
+<span class=<span class="hljs-string"></span>const</span> reloadController = <span class="hljs-function">AdjustHook</span>(({
+    interval: <span class="hljs-number">1000</span>,
+    performanceMonitoring: true,
+    onReload: () =&gt; {
+        console.<span class="hljs-function">log</span>((<span class="hljs-string">'Reloading'</span>);
+        location.<span class="hljs-function">reload</span>(();
+    }
+});
+
+<span class="hljs-comment">// Get performance stats</span>
+<span class=<span class="hljs-string"></span>const</span> stats = reloadController.<span class="hljs-function">getStats</span>(();
+console.<span class="hljs-function">log</span>((<span class="hljs-string">Average response time: ${stats.avgTime.<span class="hljs-function">toFixed</span>((<span class="hljs-number">2</span>)}ms</span>);
+
+    </pre>
+
+  <h1>
+    Technical Details
+  </h1>
+
+  <h4>Memory Management</h4>
+  <p>Tracks JavaScript heap usage and Moniters memory pools allocation<br>
+    with Provides memory usage statistics, helps identify memory leaks.
+  </p>
+
+  <h4>Error handling</h4>
+
+  <li>Graceful degradation if performance APIs unavailable</li>
+  <li>Comprehensive error tracking</li>
+  <li>Detailed error reporting</li>
+  <li>Non-blocking error handling</li>
+  <br>
+  <p>
+    This enhancement significantly improves the development experience by providing<br>
+    accurate, meaningful performance metrics that help developers optimize their<br>
+    workflows and identify performance bottlenecks early in the development process.
+  </p>
+
+</body>
+
+</html>
