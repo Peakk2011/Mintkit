@@ -529,15 +529,21 @@ WebContent.initThemeSystem();
 </pre>
 
   <h3 id="mintassembly-programming">MintAssembly Programming</h3>
-
-  <p>MintAssembly is an HTML-based programming language that emulates Assembly:</p>
-
-  <pre class="hljs"><code class="language-html">&lt;Entry&gt;
-    &lt;mov<span class="<span">&gt;dst="ax" <span class="<span">&gt;src="200"&gt;&lt;/mov&gt;
-    &lt;mov<span class="<span">&gt;dst="bx" <span class="<span">&gt;src="100"&gt;&lt;/mov&gt;
-    &lt;add<span class="<span">&gt;dst="ax" <span class="<span">&gt;src="bx"&gt;&lt;/add&gt;
-    &lt;print<span class="<span">&gt;var="ax"&gt;&lt;/print&gt;
-&lt;/Entry&gt;</code></pre>
+  <p>MintAssembly is an HTML-based programming language that emulates Assembly, now with high-level tags:</p>
+  <pre><code>&lt;Entry&gt;
+    &lt;set name="number1" value="200"&gt;&lt;/set&gt;
+    &lt;set name="number2" value="400"&gt;&lt;/set&gt;
+    &lt;show text="number1"&gt;&lt;/show&gt;
+    &lt;show text="number2"&gt;&lt;/show&gt;
+    &lt;if cond="number1 == number2"&gt;
+        &lt;show text="equal"&gt;&lt;/show&gt;
+    &lt;/if&gt;
+    &lt;else&gt;
+        &lt;show text="not equal"&gt;&lt;/show&gt;
+    &lt;/else&gt;
+&lt;/Entry&gt;
+</code></pre>
+  <p>Call <code>Mint.MintAssembly()</code> after rendering the Entry block to execute.</p>
 
   <h3 id="component-system">Component System</h3>
 

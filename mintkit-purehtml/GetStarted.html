@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+
+<body> 
+    <div id="app"></div>
+
+    <script type="module">
+        import { Mint } from 'https://cdn.jsdelivr.net/gh/Peakk2011/Mintkit@main/mintkit/mint.js';
+
+        const root = '#app';
+        const Content = { title: 'Mintkit framework' }
+
+        const Title = () => { Mint.injectTitle(`<title>${Content.title}</title>`); }
+        const render = () => {
+            Mint.injectHTML(root, `
+                <template name="ProductCard">
+                  <card class="product-card">
+                    <h3>${'${product.name}'}</h3>
+                    <price>${'${product.price | currency}'}</price>
+                    <if condition="product.discount > 0">
+                      <badge class="discount">-${'${product.discount}'}%</badge>
+                    </if>
+                    <description>${'${product.description | truncate(100)}'}</description>
+                    <tags>
+                      <for item="tag" in="product.tags">
+                        <tag>${'${tag}'}</tag>
+                      </for>
+                    </tags>
+                    <button
+                      @click="addToCart(product)"
+                      :disabled="product.stock === 0"
+                      class="btn-primary"
+                    >
+                      <if condition="product.stock > 0">
+                        Add to Cart
+                      <else>
+                        Out of Stock
+                      </if>
+                    </button>
+                  </card>
+                </template>
+                <div id="mount-point"></div>
+            `);
+        };
+
+        const CSSComponents = `
+            
+        `
+
+        const webRendering = () => {
+            Title();
+            render();
+            Mint.injectCSS(CSSComponents);
+        }
+
+        webRendering();
+        if (Mint.MintAssembly) Mint.MintAssembly();
+    </script>
+</body>
+
+</html>

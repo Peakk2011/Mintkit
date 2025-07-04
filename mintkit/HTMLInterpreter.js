@@ -3,15 +3,11 @@ export function MintAssembly() {
     const STACK_SIZE = 8192;
     const REG_COUNT = 8;
 
-    const regs = new Int32Array(REG_COUNT);
+    const variables = {};
+
     const heap = new Int32Array(HEAP_SIZE >> 2);
     const stack = new Int32Array(STACK_SIZE >> 2);
     const bytecode = new Uint8Array(32768);
-
-    const regLookup = new Map([
-        ['ax', 0], ['bx', 1], ['cx', 2], ['dx', 3],
-        ['ex', 4], ['fx', 5], ['gx', 6], ['hx', 7]
-    ]);
 
     const OP = {
         NOP: 0x00, MOV: 0x01, ADD: 0x02, SUB: 0x03, MUL: 0x04, DIV: 0x05,
@@ -70,80 +66,54 @@ export function MintAssembly() {
     }
 
     function compileInstruction(node) {
-        const tag = node.tagName;
+        const tag = node.tagName.toLowerCase();
         const attrs = node.attributes;
-
         switch (tag) {
-            case "MOV":
-                emitByte(OP.MOV);
-                emitOperand(attrs.dst?.value);
-                emitOperand(attrs.src?.value || getNodeValue(node));
+            case "set":
+                variables[attrs.name.value] = parseInt(attrs.value.value);
                 break;
-
-            case "ADD":
-                emitByte(OP.ADD);
-                emitOperand(attrs.dst?.value);
-                emitOperand(attrs.src?.value || getNodeValue(node));
+            case "show":
+                const val = variables[attrs.text.value];
+                if (typeof val !== 'undefined') {
+                    const out = document.createElement('div');
+                    out.textContent = val;
+                    node.parentNode.appendChild(out);
+                }
                 break;
-
-            case "SUB":
-                emitByte(OP.SUB);
-                emitOperand(attrs.dst?.value);
-                emitOperand(attrs.src?.value || getNodeValue(node));
+            case "if":
+                const cond = attrs.cond.value;
+                const [left, op, right] = cond.split(/\s+/);
+                let condResult = false;
+                if (op === '==') condResult = variables[left] == variables[right];
+                if (op === '!=') condResult = variables[left] != variables[right];
+                if (condResult) {
+                    for (let i = 0; i < node.children.length; i++) compileInstruction(node.children[i]);
+                } else if (node.nextElementSibling && node.nextElementSibling.tagName.toLowerCase() === "else") {
+                    for (let i = 0; i < node.nextElementSibling.children.length; i++) compileInstruction(node.nextElementSibling.children[i]);
+                }
                 break;
-
-            case "MUL":
-                emitByte(OP.MUL);
-                emitOperand(attrs.dst?.value);
-                emitOperand(attrs.src?.value || getNodeValue(node));
+            case "else":
+                // else block handle with if
                 break;
-
-            case "DIV":
-                emitByte(OP.DIV);
-                emitOperand(attrs.dst?.value);
-                emitOperand(attrs.src?.value || getNodeValue(node));
-                break;
-
-            case "CMP":
-                emitByte(OP.CMP);
-                emitOperand(attrs.a?.value);
-                emitOperand(attrs.b?.value);
-                emitOperand(attrs.jmp?.value);
-                break;
-
-            case "JMP":
-                emitByte(OP.JMP);
-                emitOperand(attrs.to?.value);
-                break;
-
-            case "XOR":
-                emitByte(OP.XOR);
-                emitOperand(attrs.dst?.value);
-                emitOperand(attrs.src?.value || getNodeValue(node));
-                break;
-
-            case "PRINT":
-                emitByte(OP.PRINT);
-                emitOperand(attrs.var?.value);
-                break;
-
-            case "PUSH":
-                emitByte(OP.PUSH);
-                emitOperand(attrs.src?.value || getNodeValue(node));
-                break;
-
-            case "POP":
-                emitByte(OP.POP);
-                emitOperand(attrs.dst?.value);
-                break;
-
-            case "LABEL":
-                emitByte(OP.LABEL);
+            // (optional: deprecated)
+            case "mov":
+            case "add":
+            case "sub":
+            case "mul":
+            case "div":
+            case "cmp":
+            case "jmp":
+            case "xor":
+            case "print":
+            case "push":
+            case "pop":
+            case "label":
+                // ... เดิม ...
                 break;
         }
     }
 
-    // Fast value extraction from DOM nodes
+    // Value extraction from DOM nodes
     function getNodeValue(node) {
         const values = node.querySelectorAll("value, text");
         if (values.length === 0) return "0";
@@ -155,12 +125,10 @@ export function MintAssembly() {
         return sum.toString();
     }
 
-    // Emit single byte to bytecode
     function emitByte(byte) {
         bytecode[codeSize++] = byte;
     }
 
-    // Emit operand with type information
     function emitOperand(operand) {
         if (!operand) {
             emitByte(ARG.IMM);
@@ -168,14 +136,12 @@ export function MintAssembly() {
             return;
         }
 
-        // Register operand
         if (regLookup.has(operand)) {
             emitByte(ARG.REG);
             emitByte(regLookup.get(operand));
             return;
         }
 
-        // Memory operand [reg]
         if (operand[0] === '[' && operand[operand.length - 1] === ']') {
             const reg = operand.slice(1, -1);
             emitByte(ARG.MEM);
@@ -183,26 +149,22 @@ export function MintAssembly() {
             return;
         }
 
-        // Element operand #id
         if (operand[0] === '#') {
             emitByte(ARG.ELEM);
             emitDWord(hashString(operand.slice(1)));
             return;
         }
 
-        // Label operand
         if (isNaN(operand)) {
             emitByte(ARG.IMM);
             emitDWord(labelTable[hashString(operand) & 0xFF] || 0);
             return;
         }
 
-        // Immediate value
         emitByte(ARG.IMM);
         emitDWord(parseInt(operand) || 0);
     }
 
-    // Emit 32-bit double word
     function emitDWord(value) {
         bytecode[codeSize++] = value & 0xFF;
         bytecode[codeSize++] = (value >> 8) & 0xFF;
@@ -391,13 +353,11 @@ export function MintAssembly() {
 
                 const sum = (imm1 + imm2) | 0;
 
-                // Replace with optimized MOV
                 bytecode[i + 4] = sum & 0xFF;
                 bytecode[i + 5] = (sum >> 8) & 0xFF;
                 bytecode[i + 6] = (sum >> 16) & 0xFF;
                 bytecode[i + 7] = (sum >> 24) & 0xFF;
 
-                // NOP the ADD instruction
                 bytecode[i + 8] = OP.NOP;
                 for (let j = i + 9; j < i + 16; j++) {
                     bytecode[j] = 0;
@@ -423,8 +383,98 @@ export function MintAssembly() {
     executeMintAssembly();
     console.timeEnd("MintAssembly Execution");
     console.log("MintAssembly States:", {
-        registers: Array.from(regs),
+        variables: { ...variables },
         stackPointer: sp,
         programCounter: pc
     });
+}
+
+// Template Engine DSL
+function universalTemplateEngine({ context = {}, filters = {} } = {}) {
+    function hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) - hash + str.charCodeAt(i)) & 0xffffffff;
+        }
+        return hash >>> 0;
+    }
+    const templates = {};
+    function evalInContext(expr, ctx) {
+        try {
+            return Function(...Object.keys(ctx), `return (${expr})`).apply(null, Object.values(ctx));
+        } catch (e) { return undefined; }
+    }
+    function interpolate(str, ctx) {
+        if (!str) return '';
+        return str.replace(/\$\{([^}]+)\}/g, (_, expr) => {
+            let [base, ...pipes] = expr.split('|').map(s => s.trim());
+            let val = evalInContext(base, ctx);
+            for (const pipe of pipes) {
+                const [fname, ...args] = pipe.split(/\(|,|\)/).map(s => s.trim()).filter(Boolean);
+                if (filters[fname]) val = filters[fname](val, ...args);
+            }
+            return val;
+        });
+    }
+    function render(node, ctx) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            node.textContent = interpolate(node.textContent, ctx);
+            return;
+        }
+        Array.from(node.attributes || []).forEach(attr => {
+            if (attr.name.startsWith('@')) {
+                const event = attr.name.slice(1);
+                node.addEventListener(event, e => evalInContext(attr.value, ctx));
+            } else if (attr.name.startsWith(':')) {
+                const prop = attr.name.slice(1);
+                node[prop] = evalInContext(attr.value, ctx);
+            } else {
+                node.setAttribute(attr.name, interpolate(attr.value, ctx));
+            }
+        });
+        if (node.tagName && node.tagName.toLowerCase() === 'for') {
+            const item = node.getAttribute('item');
+            const arr = evalInContext(node.getAttribute('in'), ctx) || [];
+            arr.forEach(val => {
+                Array.from(node.children).forEach(child => {
+                    const clone = child.cloneNode(true);
+                    render(clone, { ...ctx, [item]: val });
+                    node.parentNode.insertBefore(clone, node);
+                });
+            });
+            node.remove();
+            return;
+        }
+        if (node.tagName && node.tagName.toLowerCase() === 'if') {
+            const cond = evalInContext(node.getAttribute('condition'), ctx);
+            if (cond) {
+                Array.from(node.children).forEach(child => render(child, ctx));
+            } else {
+                const elseNode = node.nextElementSibling;
+                if (elseNode && elseNode.tagName && elseNode.tagName.toLowerCase() === 'else') {
+                    Array.from(elseNode.children).forEach(child => render(child, ctx));
+                }
+            }
+            node.remove();
+            return;
+        }
+        if (node.tagName && node.tagName.toLowerCase() === 'template') {
+            const name = node.getAttribute('name');
+            if (name) templates[name] = node;
+            return;
+        }
+        Array.from(node.childNodes).forEach(child => render(child, ctx));
+    }
+    function mount(selector, props = {}) {
+        const entry = typeof selector === 'string' ? document.querySelector(selector) : selector;
+        if (!entry) return;
+        render(entry, { ...context, ...props });
+    }
+    return { mount, templates, hashString };
+}
+
+export function MintAssembly(opts = {}) {
+    if (opts && (opts.context !== undefined || opts.filters !== undefined)) {
+        return universalTemplateEngine(opts);
+    }
 }

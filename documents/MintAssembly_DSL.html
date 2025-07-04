@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MintAssembly Template Engine Documentation</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=Anuphan:wght@400;600;700&display=swap');
+
+    :root {
+      --text: #000;
+      --background: #faf9f5;
+      --muted: #666;
+      --border: #a7a6a3;
+      --code-bg: #eae9e5;
+      --heading-border: #a7a6a3;
+      --Links: color:rgb(50, 50, 153);
+      --Mintkitdocu: #000;
+      --Mintkitdocu_Color: #faf9f5;
+      --FrameBorder: #b6b5b1;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #f4f4f4;
+        --background: #0f0f0f;
+        --muted: #999;
+        --border: #363636;
+        --code-bg: #1e1e1e;
+        --heading-border: #333;
+        --Links: color:rgb(108, 108, 243);
+        --Mintkitdocu: #1e1e1e;
+        --Mintkitdocu_Color: #c2c2c2;
+        --FrameBorder: #383838;
+      }
+    }
+
+    body {
+      font-family: 'Inter Tight', 'Anuphan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 2.5rem;
+      line-height: 1.75;
+      color: var(--text);
+      background-color: var(--background);
+      animation: fadeIn 500ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    p {
+      margin: 0 0 1.5rem;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      margin-top: 24px;
+      margin-bottom: 16px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    h1 {
+      font-size: 2em;
+      border-bottom: 1px solid var(--heading-border);
+      padding-bottom: 10px;
+    }
+
+    h2 {
+      font-size: 1.5em;
+      border-bottom: 1px solid var(--heading-border);
+      padding-bottom: 8px;
+    }
+
+    h3 {
+      font-size: 1.7em;
+    }
+
+    h4 {
+      font-size: 1.425em;
+    }
+
+    h5 {
+      font-size: 1.245em;
+    }
+
+    h6 {
+      font-size: 1em;
+    }
+
+    a {
+      color: var(--Links);
+      text-decoration: underline;
+      transition: color 0.2s ease;
+    }
+
+    a:hover,
+    a:focus {
+      color: var(--muted);
+    }
+
+    code {
+      background: var(--code-bg);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
+      font-size: 0.95em;
+    }
+
+    pre {
+      background: var(--code-bg);
+      padding: 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 0 0 1.5rem;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      border-radius: 0;
+      font-size: 0.95em;
+      color: inherit;
+    }
+
+    blockquote {
+      border-left: 4px solid var(--border);
+      margin: 0 0 1.5rem;
+      padding-left: 16px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    ul,
+    ol {
+      margin: 0 0 1.5rem 1.5rem;
+      padding: 0;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+    }
+
+    li>ul,
+    li>ol {
+      margin-top: 0.5rem;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2rem 0;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+    }
+
+    th {
+      background: var(--code-bg);
+      font-weight: 600;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 1rem auto;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 1.5rem;
+      }
+    }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(120, 120, 120, 0.25);
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+      transition: background 0.2s;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(120, 120, 120, 0.45);
+    }
+
+    ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(120, 120, 120, 0.25) transparent;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>MintAssembly DSL Template Engine</h1>
+    <p>MintAssembly is a modern HTML/JS template engine supporting Vue/React-like DSL for rapid UI development,
+      prototyping, and static web apps.</p>
+
+    <div class="section">
+      <h2>Features</h2>
+      <h3>1. Template &amp; Props</h3>
+      <pre><code>&lt;template name="ProductCard"&gt;
+  &lt;props&gt;
+    &lt;prop name="product" type="object" required /&gt;
+    &lt;prop name="showActions" type="boolean" default="true" /&gt;
+  &lt;/props&gt;
+  &lt;!-- ... --&gt;
+&lt;/template&gt;</code></pre>
+
+      <h3>2. Interpolation &amp; Filter/Pipe</h3>
+      <pre><code>&lt;h3&gt;${product.name}&lt;/h3&gt;
+&lt;price&gt;${product.price | currency}&lt;/price&gt;
+&lt;description&gt;${product.description | truncate(100)}&lt;/description&gt;</code></pre>
+
+      <h3>3. Event Binding</h3>
+      <pre><code>&lt;button @click="addToCart(product)"&gt;Add to Cart&lt;/button&gt;</code></pre>
+
+      <h3>4. Dynamic Attribute Binding</h3>
+      <pre><code>&lt;button :disabled="product.stock === 0" :class="{ active: isInWishlist(product.id) }"&gt;</code></pre>
+
+      <h3>5. Conditional Rendering</h3>
+      <pre><code>&lt;if condition="product.discount &gt; 0"&gt;
+  &lt;badge class="discount"&gt;-${product.discount}%&lt;/badge&gt;
+&lt;/if&gt;
+&lt;else&gt;
+  &lt;span&gt;No discount&lt;/span&gt;
+&lt;/else&gt;</code></pre>
+
+      <h3>6. Loop Rendering</h3>
+      <pre><code>&lt;for item="tag" in="product.tags"&gt;
+  &lt;tag&gt;${tag}&lt;/tag&gt;
+&lt;/for&gt;</code></pre>
+
+      <h3>7. Context-aware Function Call</h3>
+      <pre><code>&lt;button @click="addToCart(product)"&gt;Add to Cart&lt;/button&gt;
+&lt;span :class="{ active: isInWishlist(product.id) }"&gt;♡&lt;/span&gt;</code></pre>
+
+      <h3>8. JS Integration</h3>
+      <pre><code>const mint = MintAssembly({
+  context: {
+    addToCart: (product) =&gt; alert('Add: ' + product.name),
+    toggleWishlist: (product) =&gt; alert('Wishlist: ' + product.name),
+    isInWishlist: (id) =&gt; id === 1,
+    product: { name: 'MintKit', price: 100, stock: 5, tags: ['js', 'ui'], image: '...', discount: 10, description: '...', id: 1 }
+  },
+  filters: {
+    currency: v =&gt; '$' + v,
+    truncate: (v, n) =&gt; v.length &gt; n ? v.slice(0, n) + '...' : v
+  }
+});
+mint.mount('template[name=ProductCard]', { showActions: true });</code></pre>
+    </div>
+
+    <div class="section">
+      <h2>Full Example</h2>
+      <pre><code>&lt;template name="ProductCard"&gt;
+  &lt;card class="product-card"&gt;
+    &lt;h3&gt;${product.name}&lt;/h3&gt;
+    &lt;price&gt;${product.price | currency}&lt;/price&gt;
+    &lt;if condition="product.discount &gt; 0"&gt;
+      &lt;badge class="discount"&gt;-${product.discount}%&lt;/badge&gt;
+    &lt;/if&gt;
+    &lt;description&gt;${product.description | truncate(100)}&lt;/description&gt;
+    &lt;tags&gt;
+      &lt;for item="tag" in="product.tags"&gt;
+        &lt;tag&gt;${tag}&lt;/tag&gt;
+      &lt;/for&gt;
+    &lt;/tags&gt;
+    &lt;button
+      @click="addToCart(product)"
+      :disabled="product.stock === 0"
+      class="btn-primary"
+    &gt;
+      &lt;if condition="product.stock &gt; 0"&gt;
+        Add to Cart
+      &lt;else&gt;
+        Out of Stock
+      &lt;/if&gt;
+    &lt;/button&gt;
+    &lt;button
+      @click="toggleWishlist(product)"
+      class="btn-secondary"
+      :class="{ active: isInWishlist(product.id) }"
+    &gt;
+      ♡
+    &lt;/button&gt;
+  &lt;/card&gt;
+&lt;/template&gt;
+&lt;div id="mount-point"&gt;&lt;/div&gt;</code></pre>
+      <pre><code>const mint = MintAssembly({
+  context: {
+    addToCart: (product) =&gt; alert('Add: ' + product.name),
+    toggleWishlist: (product) =&gt; alert('Wishlist: ' + product.name),
+    isInWishlist: (id) =&gt; id === 1,
+    product: { name: 'MintKit', price: 100, stock: 5, tags: ['js', 'ui'], image: '...', discount: 10, description: '...', id: 1 }
+  },
+  filters: {
+    currency: v =&gt; '$' + v,
+    truncate: (v, n) =&gt; v.length &gt; n ? v.slice(0, n) + '...' : v
+  }
+});
+mint.mount('template[name=ProductCard]', { showActions: true });</code></pre>
+    </div>
+
+    <div class="section">
+      <h2>Notes</h2>
+      <div class="note">
+        <ul>
+          <li>Works with HTML/CSS/JS directly, no build step required.</li>
+          <li>Extensible: add your own filters, context, and templates.</li>
+          <li>Great for rapid prototyping, static web, or custom web frameworks.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

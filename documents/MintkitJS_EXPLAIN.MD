@@ -253,16 +253,24 @@ WebContent.initThemeSystem();
 
 ### MintAssembly Programming
 
-MintAssembly is an HTML-based programming language that emulates Assembly:
+MintAssembly is an HTML-based programming language that emulates Assembly
 
 ```html
 <Entry>
-    <mov dst="ax" src="200"></mov>
-    <mov dst="bx" src="100"></mov>
-    <add dst="ax" src="bx"></add>
-    <print var="ax"></print>
+    <set name="number1" value="200"></set>
+    <set name="number2" value="400"></set>
+    <show text="number1"></show>
+    <show text="number2"></show>
+    <if cond="number1 == number2">
+        <show text="equal"></show>
+    </if>
+    <else>
+        <show text="not equal"></show>
+    </else>
 </Entry>
 ```
+
+Call `Mint.MintAssembly()` after rendering the Entry block to execute.
 
 ### Component System
 
