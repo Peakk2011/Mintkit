@@ -1,4 +1,4 @@
-export function MintAssembly() {
+function legacyMintAssembly(opts) {
     const HEAP_SIZE = 65536;
     const STACK_SIZE = 8192;
     const REG_COUNT = 8;
@@ -93,9 +93,9 @@ export function MintAssembly() {
                 }
                 break;
             case "else":
-                // else block handle with if
+                // else block ถูก handle ใน if
                 break;
-            // (optional: deprecated)
+            // ... assembly tag เดิม (optional: deprecated) ...
             case "mov":
             case "add":
             case "sub":
@@ -113,7 +113,7 @@ export function MintAssembly() {
         }
     }
 
-    // Value extraction from DOM nodes
+    // Fast value extraction from DOM nodes
     function getNodeValue(node) {
         const values = node.querySelectorAll("value, text");
         if (values.length === 0) return "0";
@@ -125,10 +125,12 @@ export function MintAssembly() {
         return sum.toString();
     }
 
+    // Emit single byte to bytecode
     function emitByte(byte) {
         bytecode[codeSize++] = byte;
     }
 
+    // Emit operand with type information
     function emitOperand(operand) {
         if (!operand) {
             emitByte(ARG.IMM);
@@ -136,12 +138,14 @@ export function MintAssembly() {
             return;
         }
 
+        // Register operand
         if (regLookup.has(operand)) {
             emitByte(ARG.REG);
             emitByte(regLookup.get(operand));
             return;
         }
 
+        // Memory operand [reg]
         if (operand[0] === '[' && operand[operand.length - 1] === ']') {
             const reg = operand.slice(1, -1);
             emitByte(ARG.MEM);
@@ -149,22 +153,26 @@ export function MintAssembly() {
             return;
         }
 
+        // Element operand #id
         if (operand[0] === '#') {
             emitByte(ARG.ELEM);
             emitDWord(hashString(operand.slice(1)));
             return;
         }
 
+        // Label operand
         if (isNaN(operand)) {
             emitByte(ARG.IMM);
             emitDWord(labelTable[hashString(operand) & 0xFF] || 0);
             return;
         }
 
+        // Immediate value
         emitByte(ARG.IMM);
         emitDWord(parseInt(operand) || 0);
     }
 
+    // Emit 32-bit double word
     function emitDWord(value) {
         bytecode[codeSize++] = value & 0xFF;
         bytecode[codeSize++] = (value >> 8) & 0xFF;
@@ -353,11 +361,13 @@ export function MintAssembly() {
 
                 const sum = (imm1 + imm2) | 0;
 
+                // Replace with optimized MOV
                 bytecode[i + 4] = sum & 0xFF;
                 bytecode[i + 5] = (sum >> 8) & 0xFF;
                 bytecode[i + 6] = (sum >> 16) & 0xFF;
                 bytecode[i + 7] = (sum >> 24) & 0xFF;
 
+                // NOP the ADD instruction
                 bytecode[i + 8] = OP.NOP;
                 for (let j = i + 9; j < i + 16; j++) {
                     bytecode[j] = 0;
@@ -388,7 +398,6 @@ export function MintAssembly() {
         programCounter: pc
     });
 }
-
 // Template Engine DSL
 function universalTemplateEngine({ context = {}, filters = {} } = {}) {
     function hashString(str) {
@@ -472,9 +481,10 @@ function universalTemplateEngine({ context = {}, filters = {} } = {}) {
     }
     return { mount, templates, hashString };
 }
-
+// --- Entry Point ---
 export function MintAssembly(opts = {}) {
     if (opts && (opts.context !== undefined || opts.filters !== undefined)) {
         return universalTemplateEngine(opts);
     }
+    return legacyMintAssembly(opts);
 }

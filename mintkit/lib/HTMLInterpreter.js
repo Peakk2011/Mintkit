@@ -1,9 +1,8 @@
-export function MintAssembly() {
+function legacyMintAssembly(opts) {
     const HEAP_SIZE = 65536;
     const STACK_SIZE = 8192;
     const REG_COUNT = 8;
 
-    // --- แทนที่ regLookup/regs ด้วย variable storage ---
     const variables = {};
 
     const heap = new Int32Array(HEAP_SIZE >> 2);
@@ -399,96 +398,93 @@ export function MintAssembly() {
         programCounter: pc
     });
 }
-
-// --- Universal Template Engine DSL ---
+// Template Engine DSL
 function universalTemplateEngine({ context = {}, filters = {} } = {}) {
-  function hashString(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) - hash + str.charCodeAt(i)) & 0xffffffff;
-    }
-    return hash >>> 0;
-  }
-  const templates = {};
-  function evalInContext(expr, ctx) {
-    try {
-      return Function(...Object.keys(ctx), `return (${expr})`).apply(null, Object.values(ctx));
-    } catch (e) { return undefined; }
-  }
-  function interpolate(str, ctx) {
-    if (!str) return '';
-    return str.replace(/\$\{([^}]+)\}/g, (_, expr) => {
-      let [base, ...pipes] = expr.split('|').map(s => s.trim());
-      let val = evalInContext(base, ctx);
-      for (const pipe of pipes) {
-        const [fname, ...args] = pipe.split(/\(|,|\)/).map(s => s.trim()).filter(Boolean);
-        if (filters[fname]) val = filters[fname](val, ...args);
-      }
-      return val;
-    });
-  }
-  function render(node, ctx) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      node.textContent = interpolate(node.textContent, ctx);
-      return;
-    }
-    Array.from(node.attributes || []).forEach(attr => {
-      if (attr.name.startsWith('@')) {
-        const event = attr.name.slice(1);
-        node.addEventListener(event, e => evalInContext(attr.value, ctx));
-      } else if (attr.name.startsWith(':')) {
-        const prop = attr.name.slice(1);
-        node[prop] = evalInContext(attr.value, ctx);
-      } else {
-        node.setAttribute(attr.name, interpolate(attr.value, ctx));
-      }
-    });
-    if (node.tagName && node.tagName.toLowerCase() === 'for') {
-      const item = node.getAttribute('item');
-      const arr = evalInContext(node.getAttribute('in'), ctx) || [];
-      arr.forEach(val => {
-        Array.from(node.children).forEach(child => {
-          const clone = child.cloneNode(true);
-          render(clone, { ...ctx, [item]: val });
-          node.parentNode.insertBefore(clone, node);
-        });
-      });
-      node.remove();
-      return;
-    }
-    if (node.tagName && node.tagName.toLowerCase() === 'if') {
-      const cond = evalInContext(node.getAttribute('condition'), ctx);
-      if (cond) {
-        Array.from(node.children).forEach(child => render(child, ctx));
-      } else {
-        const elseNode = node.nextElementSibling;
-        if (elseNode && elseNode.tagName && elseNode.tagName.toLowerCase() === 'else') {
-          Array.from(elseNode.children).forEach(child => render(child, ctx));
+    function hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) - hash + str.charCodeAt(i)) & 0xffffffff;
         }
-      }
-      node.remove();
-      return;
+        return hash >>> 0;
     }
-    if (node.tagName && node.tagName.toLowerCase() === 'template') {
-      const name = node.getAttribute('name');
-      if (name) templates[name] = node;
-      return;
+    const templates = {};
+    function evalInContext(expr, ctx) {
+        try {
+            return Function(...Object.keys(ctx), `return (${expr})`).apply(null, Object.values(ctx));
+        } catch (e) { return undefined; }
     }
-    Array.from(node.childNodes).forEach(child => render(child, ctx));
-  }
-  function mount(selector, props = {}) {
-    const entry = typeof selector === 'string' ? document.querySelector(selector) : selector;
-    if (!entry) return;
-    render(entry, { ...context, ...props });
-  }
-  return { mount, templates, hashString };
+    function interpolate(str, ctx) {
+        if (!str) return '';
+        return str.replace(/\$\{([^}]+)\}/g, (_, expr) => {
+            let [base, ...pipes] = expr.split('|').map(s => s.trim());
+            let val = evalInContext(base, ctx);
+            for (const pipe of pipes) {
+                const [fname, ...args] = pipe.split(/\(|,|\)/).map(s => s.trim()).filter(Boolean);
+                if (filters[fname]) val = filters[fname](val, ...args);
+            }
+            return val;
+        });
+    }
+    function render(node, ctx) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            node.textContent = interpolate(node.textContent, ctx);
+            return;
+        }
+        Array.from(node.attributes || []).forEach(attr => {
+            if (attr.name.startsWith('@')) {
+                const event = attr.name.slice(1);
+                node.addEventListener(event, e => evalInContext(attr.value, ctx));
+            } else if (attr.name.startsWith(':')) {
+                const prop = attr.name.slice(1);
+                node[prop] = evalInContext(attr.value, ctx);
+            } else {
+                node.setAttribute(attr.name, interpolate(attr.value, ctx));
+            }
+        });
+        if (node.tagName && node.tagName.toLowerCase() === 'for') {
+            const item = node.getAttribute('item');
+            const arr = evalInContext(node.getAttribute('in'), ctx) || [];
+            arr.forEach(val => {
+                Array.from(node.children).forEach(child => {
+                    const clone = child.cloneNode(true);
+                    render(clone, { ...ctx, [item]: val });
+                    node.parentNode.insertBefore(clone, node);
+                });
+            });
+            node.remove();
+            return;
+        }
+        if (node.tagName && node.tagName.toLowerCase() === 'if') {
+            const cond = evalInContext(node.getAttribute('condition'), ctx);
+            if (cond) {
+                Array.from(node.children).forEach(child => render(child, ctx));
+            } else {
+                const elseNode = node.nextElementSibling;
+                if (elseNode && elseNode.tagName && elseNode.tagName.toLowerCase() === 'else') {
+                    Array.from(elseNode.children).forEach(child => render(child, ctx));
+                }
+            }
+            node.remove();
+            return;
+        }
+        if (node.tagName && node.tagName.toLowerCase() === 'template') {
+            const name = node.getAttribute('name');
+            if (name) templates[name] = node;
+            return;
+        }
+        Array.from(node.childNodes).forEach(child => render(child, ctx));
+    }
+    function mount(selector, props = {}) {
+        const entry = typeof selector === 'string' ? document.querySelector(selector) : selector;
+        if (!entry) return;
+        render(entry, { ...context, ...props });
+    }
+    return { mount, templates, hashString };
 }
-
 // --- Entry Point ---
 export function MintAssembly(opts = {}) {
-  if (opts && (opts.context !== undefined || opts.filters !== undefined)) {
-    return universalTemplateEngine(opts);
-  }
-  // (คง logic assembly/bytecode เดิมไว้)
-  // (ลบ export function MintAssembly ที่ซ้ำซ้อนออก)
+    if (opts && (opts.context !== undefined || opts.filters !== undefined)) {
+        return universalTemplateEngine(opts);
+    }
+    return legacyMintAssembly(opts);
 }
