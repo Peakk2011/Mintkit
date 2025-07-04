@@ -1,316 +1,411 @@
-// MintAssembly HTMLInterpreter.js (Refactored)
+// HTMLInterpreter.js - MintAssembly
+const defaultFilters = {
+  currency: val => `$${parseFloat(val).toFixed(2)}`,
+  truncate: (val, len = 100) => val.length > len ? val.slice(0, len) + '...' : val,
+  uppercase: val => String(val).toUpperCase(),
+  lowercase: val => String(val).toLowerCase(),
+  capitalize: val => String(val).charAt(0).toUpperCase() + String(val).slice(1),
+  date: val => new Date(val).toLocaleDateString(),
+  json: val => JSON.stringify(val, null, 2),
+  length: val => Array.isArray(val) ? val.length : String(val).length,
+  reverse: val => Array.isArray(val) ? val.reverse() : String(val).split('').reverse().join(''),
+  join: (val, separator = ', ') => Array.isArray(val) ? val.join(separator) : val,
+  default: (val, fallback = '') => val ?? fallback
+};
 
-function legacyMintAssembly(opts) {
-    const HEAP_SIZE = 65536;
-    const STACK_SIZE = 8192;
-    const REG_COUNT = 8;
-    const variables = {};
-    const heap = new Int32Array(HEAP_SIZE >> 2);
-    const stack = new Int32Array(STACK_SIZE >> 2);
-    const bytecode = new Uint8Array(32768);
-    const OP = {
-        NOP: 0x00, MOV: 0x01, ADD: 0x02, SUB: 0x03, MUL: 0x04, DIV: 0x05,
-        CMP: 0x06, JMP: 0x07, CALL: 0x08, RET: 0x09, XOR: 0x0A, PRINT: 0x0B,
-        PUSH: 0x0C, POP: 0x0D, LOAD: 0x0E, STORE: 0x0F, LABEL: 0x10
-    };
-    const ARG = { REG: 0, IMM: 1, MEM: 2, ELEM: 3 };
-    let pc = 0;
-    let sp = 0;
-    let codeSize = 0;
-    let labelTable = new Uint16Array(256);
-    let labelCount = 0;
-    const elementCache = new Map();
-    function compileToMachineCode() {
-        const container = document.querySelector("Entry");
-        if (!container) {
-            console.error("MintAssembly: Missing <Entry> container");
-            return false;
-        }
-        const nodes = container.children;
-        const nodeCount = nodes.length;
-        for (let i = 0; i < nodeCount; i++) {
-            const node = nodes[i];
-            const tag = node.tagName;
-            if (tag === "LABEL") {
-                const name = node.getAttribute("name");
-                if (name) {
-                    labelTable[labelCount++] = codeSize;
-                    labelTable[hashString(name) & 0xFF] = codeSize;
-                }
-            }
-        }
-        for (let i = 0; i < nodeCount; i++) {
-            compileInstruction(nodes[i]);
-        }
-        return true;
-    }
-    function hashString(str) {
-        let hash = 0;
-        const len = str.length;
-        for (let i = 0; i < len; i++) {
-            hash = ((hash << 5) - hash + str.charCodeAt(i)) & 0xFFFFFFFF;
-        }
-        return hash >>> 0;
-    }
-    function compileInstruction(node) {
-        const tag = node.tagName.toLowerCase();
-        const attrs = node.attributes;
-        switch (tag) {
-            case "set":
-                variables[attrs.name.value] = parseInt(attrs.value.value);
-                break;
-            case "show":
-                const val = variables[attrs.text.value];
-                if (typeof val !== 'undefined') {
-                    const out = document.createElement('div');
-                    out.textContent = val;
-                    node.parentNode.appendChild(out);
-                }
-                break;
-            case "if":
-                const cond = attrs.cond.value;
-                const [left, op, right] = cond.split(/\s+/);
-                let condResult = false;
-                if (op === '==') condResult = variables[left] == variables[right];
-                if (op === '!=') condResult = variables[left] != variables[right];
-                if (condResult) {
-                    for (let i = 0; i < node.children.length; i++) compileInstruction(node.children[i]);
-                } else if (node.nextElementSibling && node.nextElementSibling.tagName.toLowerCase() === "else") {
-                    for (let i = 0; i < node.nextElementSibling.children.length; i++) compileInstruction(node.nextElementSibling.children[i]);
-                }
-                break;
-            case "else":
-                break;
-            case "mov":
-            case "add":
-            case "sub":
-            case "mul":
-            case "div":
-            case "cmp":
-            case "jmp":
-            case "xor":
-            case "print":
-            case "push":
-            case "pop":
-            case "label":
-                break;
-        }
-    }
-    function getNodeValue(node) {
-        const values = node.querySelectorAll("value, text");
-        if (values.length === 0) return "0";
-        let sum = 0;
-        for (let i = 0; i < values.length; i++) {
-            sum += parseInt(values[i].textContent) || 0;
-        }
-        return sum.toString();
-    }
-    function emitByte(byte) {
-        bytecode[codeSize++] = byte;
-    }
-    function emitOperand(operand) {
-        if (!operand) {
-            emitByte(ARG.IMM);
-            emitDWord(0);
-            return;
-        }
-        if (regLookup.has(operand)) {
-            emitByte(ARG.REG);
-            emitByte(regLookup.get(operand));
-            return;
-        }
-        if (operand[0] === '[' && operand[operand.length - 1] === ']') {
-            const reg = operand.slice(1, -1);
-            emitByte(ARG.MEM);
-            emitByte(regLookup.get(reg) || 0);
-            return;
-        }
-        if (operand[0] === '#') {
-            emitByte(ARG.ELEM);
-            emitDWord(hashString(operand.slice(1)));
-            return;
-        }
-        if (isNaN(operand)) {
-            emitByte(ARG.IMM);
-            emitDWord(labelTable[hashString(operand) & 0xFF] || 0);
-            return;
-        }
-        emitByte(ARG.IMM);
-        emitDWord(parseInt(operand) || 0);
-    }
-    function emitDWord(value) {
-        bytecode[codeSize++] = value & 0xFF;
-        bytecode[codeSize++] = (value >> 8) & 0xFF;
-        bytecode[codeSize++] = (value >> 16) & 0xFF;
-        bytecode[codeSize++] = (value >> 24) & 0xFF;
-    }
-    function readDWord() {
-        const val = bytecode[pc] | (bytecode[pc + 1] << 8) |
-            (bytecode[pc + 2] << 16) | (bytecode[pc + 3] << 24);
-        pc += 4;
-        return val;
-    }
-    function resolveOperand() {
-        const type = bytecode[pc++];
-        switch (type) {
-            case ARG.REG:
-                return regs[bytecode[pc++]];
-            case ARG.IMM:
-                return readDWord();
-            case ARG.MEM:
-                const regIdx = bytecode[pc++];
-                return heap[regs[regIdx]];
-            case ARG.ELEM:
-                const hash = readDWord();
-                const cached = elementCache.get(hash);
-                if (cached !== undefined) return cached;
-                return 0;
-        }
-        return 0;
-    }
-    function setOperand(value) {
-        // ... (implement as needed) ...
-    }
-    function executeMintAssembly() {
-        // ... (implement as needed) ...
-    }
-    function cacheElements() {
-        const elements = document.querySelectorAll("[id]");
-        for (let i = 0; i < elements.length; i++) {
-            const el = elements[i];
-            const hash = hashString(el.id);
-            const value = parseInt(el.textContent) || 0;
-            elementCache.set(hash, value);
-        }
-    }
-    function optimizeBytecode() {
-        for (let i = 0; i < codeSize - 8; i++) {
-            if (bytecode[i] === OP.MOV && bytecode[i + 1] === ARG.REG &&
-                bytecode[i + 3] === ARG.IMM &&
-                bytecode[i + 8] === OP.ADD && bytecode[i + 9] === ARG.REG &&
-                bytecode[i + 11] === ARG.IMM &&
-                bytecode[i + 2] === bytecode[i + 10]) {
-                const imm1 = bytecode[i + 4] | (bytecode[i + 5] << 8) |
-                    (bytecode[i + 6] << 16) | (bytecode[i + 7] << 24);
-                const imm2 = bytecode[i + 12] | (bytecode[i + 13] << 8) |
-                    (bytecode[i + 14] << 16) | (bytecode[i + 15] << 24);
-                const sum = (imm1 + imm2) | 0;
-                bytecode[i + 4] = sum & 0xFF;
-                bytecode[i + 5] = (sum >> 8) & 0xFF;
-                bytecode[i + 6] = (sum >> 16) & 0xFF;
-                bytecode[i + 7] = (sum >> 24) & 0xFF;
-                bytecode[i + 8] = OP.NOP;
-                for (let j = i + 9; j < i + 16; j++) {
-                    bytecode[j] = 0;
-                }
-            }
-        }
-    }
-    console.time("MintAssembly Compilation");
-    if (!compileToMachineCode()) {
-        console.error("MintAssembly: Compilation failed");
-        return;
-    }
-    console.timeEnd("MintAssembly Compilation");
-    console.log(`MintAssembly: Generated ${codeSize} bytes of bytecode`);
-    cacheElements();
-    optimizeBytecode();
-    console.time("MintAssembly Execution");
-    executeMintAssembly();
-    console.timeEnd("MintAssembly Execution");
-    console.log("MintAssembly States:", {
-        variables: { ...variables },
-        stackPointer: sp,
-        programCounter: pc
-    });
-}
+export function MintAssembly({ context = {}, filters = {}, debug = false, template } = {}) {
+  const templates = new Map();
+  const components = new Map();
+  const duplicateElements = new Map();
+  const allFilters = { ...defaultFilters, ...filters };
+  let templateRoot = null;
 
-function universalTemplateEngine({ context = {}, filters = {} } = {}) {
-    function hashString(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            hash = ((hash << 5) - hash + str.charCodeAt(i)) & 0xffffffff;
-        }
-        return hash >>> 0;
+  if (template && typeof template === 'string') {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(`<div>${template}</div>`, 'text/html');
+      if (doc.body.firstChild) {
+        templateRoot = doc.body.firstChild;
+      } else if (debug) {
+        console.warn('[MintAssembly] Provided template string is empty or invalid.');
+      }
+    } catch (error) {
+      console.error('[MintAssembly] Error parsing template string:', error);
     }
-    const templates = {};
-    function evalInContext(expr, ctx) {
-        try {
-            return Function(...Object.keys(ctx), `return (${expr})`).apply(null, Object.values(ctx));
-        } catch (e) { return undefined; }
+  }
+
+  const reactiveData = new Proxy({}, {
+    set(target, prop, value) {
+      target[prop] = value;
+      if (debug) console.log(`[MintAssembly] Data changed: ${prop} = ${value}`);
+      return true;
     }
-    function interpolate(str, ctx) {
-        if (!str) return '';
-        return str.replace(/\$\{([^}]+)\}/g, (_, expr) => {
-            let [base, ...pipes] = expr.split('|').map(s => s.trim());
-            let val = evalInContext(base, ctx);
-            for (const pipe of pipes) {
-                const [fname, ...args] = pipe.split(/\(|,|\)/).map(s => s.trim()).filter(Boolean);
-                if (filters[fname]) val = filters[fname](val, ...args);
-            }
-            return val;
-        });
+  });
+
+  function evalExpr(expr, ctx) {
+    if (!expr || typeof expr !== 'string') return expr;
+
+    try {
+      const safeContext = { ...ctx };
+      delete safeContext.window;
+      delete safeContext.document;
+      delete safeContext.eval;
+      delete safeContext.Function;
+
+      const fn = new Function(...Object.keys(safeContext), `"use strict"; return (${expr});`);
+      return fn(...Object.values(safeContext));
+    } catch (error) {
+      if (debug) console.warn(`[MintAssembly] Expression error: ${expr}`, error);
+      return undefined;
     }
-    function render(node, ctx) {
-        if (node.nodeType === Node.TEXT_NODE) {
-            node.textContent = interpolate(node.textContent, ctx);
-            return;
-        }
-        Array.from(node.attributes || []).forEach(attr => {
-            if (attr.name.startsWith('@')) {
-                const event = attr.name.slice(1);
-                node.addEventListener(event, e => evalInContext(attr.value, ctx));
-            } else if (attr.name.startsWith(':')) {
-                const prop = attr.name.slice(1);
-                node[prop] = evalInContext(attr.value, ctx);
-            } else {
-                node.setAttribute(attr.name, interpolate(attr.value, ctx));
-            }
-        });
-        if (node.tagName && node.tagName.toLowerCase() === 'for') {
-            const item = node.getAttribute('item');
-            const arr = evalInContext(node.getAttribute('in'), ctx) || [];
-            arr.forEach(val => {
-                Array.from(node.children).forEach(child => {
-                    const clone = child.cloneNode(true);
-                    render(clone, { ...ctx, [item]: val });
-                    node.parentNode.insertBefore(clone, node);
-                });
+  }
+
+  // Interpolation with nested object support
+  function interpolate(str, ctx) {
+    if (!str || typeof str !== 'string') return str;
+
+    return str.replace(/\$\{([^}]+)\}/g, (match, expr) => {
+      try {
+        let [base, ...pipes] = expr.split('|').map(s => s.trim());
+        let val = evalExpr(base, ctx);
+
+        for (const pipe of pipes) {
+          const [fname, ...args] = pipe.split(/\(|,|\)/).map(s => s.trim()).filter(Boolean);
+          if (fname in allFilters) {
+            const filterArgs = args.map(arg => {
+              // Try to evaluate arguments as expressions
+              const evaluated = evalExpr(arg, ctx);
+              return evaluated !== undefined ? evaluated : arg.replace(/['"]/g, '');
             });
-            node.remove();
-            return;
+            val = allFilters[fname](val, ...filterArgs);
+          }
         }
-        if (node.tagName && node.tagName.toLowerCase() === 'if') {
-            const cond = evalInContext(node.getAttribute('condition'), ctx);
-            if (cond) {
-                Array.from(node.children).forEach(child => render(child, ctx));
-            } else {
-                const elseNode = node.nextElementSibling;
-                if (elseNode && elseNode.tagName && elseNode.tagName.toLowerCase() === 'else') {
-                    Array.from(elseNode.children).forEach(child => render(child, ctx));
-                }
-            }
-            node.remove();
-            return;
-        }
-        if (node.tagName && node.tagName.toLowerCase() === 'template') {
-            const name = node.getAttribute('name');
-            if (name) templates[name] = node;
-            return;
-        }
-        Array.from(node.childNodes).forEach(child => render(child, ctx));
-    }
-    function mount(selector, props = {}) {
-        const entry = typeof selector === 'string' ? document.querySelector(selector) : selector;
-        if (!entry) return;
-        render(entry, { ...context, ...props });
-    }
-    return { mount, templates, hashString };
-}
 
-export function MintAssembly(opts = {}) {
-    if (opts && (opts.context !== undefined || opts.filters !== undefined)) {
-        return universalTemplateEngine(opts);
+        return val ?? '';
+      } catch (error) {
+        if (debug) console.warn(`[MintAssembly] Interpolation error: ${match}`, error);
+        return match;
+      }
+    });
+  }
+
+  // Element duplication system
+  function registerDuplicateElement(name, element) {
+    duplicateElements.set(name.toLowerCase(), element);
+  }
+
+  function createDuplicateElement(name, props = {}) {
+    const template = duplicateElements.get(name.toLowerCase());
+    if (!template) {
+      if (debug) console.warn(`[MintAssembly] Duplicate element not found: ${name}`);
+      return null;
     }
-    return legacyMintAssembly(opts);
+
+    const cloned = template.cloneNode(true);
+
+    // Apply props to the cloned element
+    Object.entries(props).forEach(([key, value]) => {
+      if (key.startsWith('@')) {
+        const eventName = key.slice(1);
+        cloned.addEventListener(eventName, value);
+      } else if (key.startsWith(':')) {
+        const propName = key.slice(1);
+        cloned[propName] = value;
+      } else {
+        cloned.setAttribute(key, value);
+      }
+    });
+
+    return cloned;
+  }
+
+  function registerComponent(name, template) {
+    components.set(name.toLowerCase(), template);
+  }
+
+  // Node rendering with better performance
+  function renderNode(node, ctx, container) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const interpolated = interpolate(node.textContent, ctx);
+      if (interpolated !== node.textContent) {
+        const txt = document.createTextNode(interpolated);
+        container.appendChild(txt);
+      } else {
+        container.appendChild(node.cloneNode(true));
+      }
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const tag = node.tagName.toLowerCase();
+
+    // Duplicate element registration
+    if (tag === 'duplicate') {
+      const name = node.getAttribute('name');
+      const source = node.getAttribute('source');
+
+      if (name && source) {
+        const sourceElement = document.querySelector(source);
+        if (sourceElement) {
+          registerDuplicateElement(name, sourceElement);
+          if (debug) console.log(`[MintAssembly] Registered duplicate element: ${name} from ${source}`);
+        }
+      }
+      return;
+    }
+
+    // Duplicate element usage
+    if (tag === 'use') {
+      const name = node.getAttribute('name');
+      const times = parseInt(node.getAttribute('times')) || 1;
+
+      if (name) {
+        for (let i = 0; i < times; i++) {
+          const props = {};
+          [...node.attributes].forEach(attr => {
+            if (attr.name !== 'name' && attr.name !== 'times') {
+              props[attr.name] = evalExpr(attr.value, ctx) ?? attr.value;
+            }
+          });
+
+          // Add loop context for multiple uses
+          const loopCtx = { ...ctx, $index: i, $first: i === 0, $last: i === times - 1 };
+
+          const duplicated = createDuplicateElement(name, props);
+          if (duplicated) {
+            const tempContainer = document.createElement('div');
+            tempContainer.appendChild(duplicated);
+
+            [...tempContainer.children].forEach(child => {
+              renderNode(child, loopCtx, container);
+            });
+          }
+        }
+      }
+      return;
+    }
+
+    // Conditional rendering
+    if (tag === 'if') {
+      const condition = node.getAttribute('condition');
+      const cond = evalExpr(condition, ctx);
+
+      if (cond) {
+        [...node.children].forEach(child => renderNode(child, ctx, container));
+      } else {
+        let nextSibling = node.nextElementSibling;
+        while (nextSibling) {
+          const siblingTag = nextSibling.tagName.toLowerCase();
+
+          if (siblingTag === 'elseif') {
+            const elseifCondition = nextSibling.getAttribute('condition');
+            if (evalExpr(elseifCondition, ctx)) {
+              [...nextSibling.children].forEach(child => renderNode(child, ctx, container));
+              break;
+            }
+          } else if (siblingTag === 'else') {
+            [...nextSibling.children].forEach(child => renderNode(child, ctx, container));
+            break;
+          } else {
+            break;
+          }
+
+          nextSibling = nextSibling.nextElementSibling;
+        }
+      }
+      return;
+    }
+
+    // Skip else/elseif as handled by if
+    if (tag === 'else' || tag === 'elseif') return;
+
+    if (tag === 'for') {
+      const itemName = node.getAttribute('item');
+      const indexName = node.getAttribute('index') || 'index';
+      const arrExpr = node.getAttribute('in');
+      const arr = evalExpr(arrExpr, ctx) || [];
+
+      if (Array.isArray(arr)) {
+        arr.forEach((item, index) => {
+          const loopCtx = {
+            ...ctx,
+            [itemName]: item,
+            [indexName]: index,
+            $first: index === 0,
+            $last: index === arr.length - 1,
+            $odd: index % 2 === 1,
+            $even: index % 2 === 0
+          };
+          [...node.children].forEach(child => renderNode(child, loopCtx, container));
+        });
+      }
+      return;
+    }
+
+    // Switch statement support
+    if (tag === 'switch') {
+      const switchValue = evalExpr(node.getAttribute('value'), ctx);
+      let matched = false;
+
+      [...node.children].forEach(child => {
+        if (child.nodeType !== Node.ELEMENT_NODE) return;
+
+        const childTag = child.tagName.toLowerCase();
+        if (childTag === 'case') {
+          const caseValue = evalExpr(child.getAttribute('value'), ctx);
+          if (!matched && switchValue === caseValue) {
+            matched = true;
+            [...child.children].forEach(grandchild => renderNode(grandchild, ctx, container));
+          }
+        } else if (childTag === 'default' && !matched) {
+          [...child.children].forEach(grandchild => renderNode(grandchild, ctx, container));
+        }
+      });
+      return;
+    }
+
+    if (templates.has(tag)) {
+      const templateNode = templates.get(tag);
+      const content = templateNode.content || templateNode;
+
+      const props = {};
+      [...node.attributes].forEach(attr => {
+        props[attr.name] = evalExpr(attr.value, ctx) ?? attr.value;
+      });
+
+      const componentCtx = { ...ctx, ...props };
+      [...content.children].forEach(child => renderNode(child, componentCtx, container));
+      return;
+    }
+
+    // Regular element rendering
+    const el = node.cloneNode(false);
+
+    // Attribute handling
+    [...node.attributes].forEach(attr => {
+      const attrName = attr.name;
+      const attrValue = attr.value;
+
+      if (attrName.startsWith('@')) {
+        const eventName = attrName.slice(1);
+        el.addEventListener(eventName, (e) => {
+          const extendedCtx = { ...ctx, $event: e, $el: el };
+          if (attrValue.trim().endsWith(")")) {
+            evalExpr(attrValue, extendedCtx);
+          } else {
+            const handler = evalExpr(attrValue, extendedCtx);
+            if (typeof handler === 'function') {
+              handler.call(el, e);
+            }
+          }
+        });
+      } else if (attrName.startsWith(':')) {
+        const propName = attrName.slice(1);
+        const propValue = evalExpr(attrValue, ctx);
+
+        if (propName in el) {
+          el[propName] = propValue;
+        } else {
+          el.setAttribute(propName, propValue);
+        }
+      } else if (attrName === 'v-show') {
+        const show = evalExpr(attrValue, ctx);
+        el.style.display = show ? '' : 'none';
+      } else if (attrName === 'v-if') {
+        const condition = evalExpr(attrValue, ctx);
+        if (!condition) return;
+      } else {
+        el.setAttribute(attrName, interpolate(attrValue, ctx));
+      }
+    });
+
+    [...node.childNodes].forEach(child => renderNode(child, ctx, el));
+    container.appendChild(el);
+  }
+
+  function mount(selector, props = {}) {
+    const container = typeof selector === 'string' ? document.querySelector(selector) : selector;
+    if (!container) {
+      console.error(`[MintAssembly] Container not found: ${selector}`);
+      return;
+    }
+
+    if (context.beforeMount) context.beforeMount();
+
+    if (context.beforeRender) context.beforeRender();
+
+    container.innerHTML = '';
+    const entry = templateRoot || document.querySelector('entry');
+    if (!entry) {
+      console.error('[MintAssembly] Missing <Entry> root element or a valid template string in the constructor.');
+      return;
+    }
+
+    const finalContext = { ...context, ...props, ...reactiveData };
+
+    try {
+      [...entry.childNodes].forEach(child => renderNode(child, finalContext, container));
+      
+      if (context.mounted) context.mounted();
+
+      if (debug) console.log('[MintAssembly] Mount completed successfully');
+    } catch (error) {
+      console.error('[MintAssembly] Mount error:', error);
+    }
+  }
+
+  function render(props = {}) {
+    if (context.beforeRender) context.beforeRender();
+
+    const tempContainer = document.createElement('div');
+    const entry = templateRoot;
+
+    if (!entry) {
+      if (debug) console.error('[MintAssembly] Missing a valid template string in the constructor for render().');
+      return '';
+    }
+
+    const finalContext = { ...context, ...props, ...reactiveData };
+
+    try {
+      const entryClone = entry.cloneNode(true);
+      [...entryClone.childNodes].forEach(child => renderNode(child, finalContext, tempContainer));
+      return tempContainer.innerHTML;
+    } catch (error) {
+      console.error('[MintAssembly] Render error:', error);
+      return '';
+    }
+  }
+
+  function setData(key, value) {
+    reactiveData[key] = value;
+  }
+
+  function getData(key) {
+    return reactiveData[key];
+  }
+
+  function compileTemplate(templateString) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${templateString}</div>`, 'text/html');
+    return doc.body.firstChild;
+  }
+
+  return {
+    mount,
+    render,
+    templates,
+    components,
+    duplicateElements,
+    setData,
+    getData,
+    registerComponent,
+    registerDuplicateElement,
+    createDuplicateElement,
+    compileTemplate,
+    filters: allFilters,
+    addFilter: (name, fn) => { allFilters[name] = fn; },
+    debug: (enabled) => { debug = enabled; }
+  };
 }
