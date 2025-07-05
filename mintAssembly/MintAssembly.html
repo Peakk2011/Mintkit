@@ -1,0 +1,89 @@
+<!-- 
+    MintAssembly example with usage examples and basic systems for this system as well
+    It is a product and Wishlist system, shopping cart system and user system
+    It will use the MintAssembly system structure and this is an example for
+    A basic online store system that can be expanded to add other features.
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MintAssembly demo</title>
+</head>
+
+<body>
+    <div id="app"></div>
+    <script type="module">
+        import { Mint } from "https://cdn.jsdelivr.net/gh/Peakk2011/Mintkit@main/mintkit/mint.js";
+
+        const state = {
+            product: { id: 1, name: 'Test Product' },
+            wishlistItems: new Set(),
+            isInWishlist: (id) => state.wishlistItems.has(id),
+            addToCart: (p) => console.log('Added to cart:', p),
+            toggleWishlist: (id) => {
+                if (state.wishlistItems.has(id)) {
+                    state.wishlistItems.delete(id);
+                } else {
+                    state.wishlistItems.add(id);
+                }
+                renderUI();
+            }
+        };
+
+        Mint.injectTitle(`<title>MintAssembly demo</title>`);
+
+        Mint.injectCSS(`
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+        `);
+
+        function renderUI() {
+            const isInWishlist = state.isInWishlist(state.product.id);
+            
+            const html = `
+                <div class="product-card">
+                    <div class="product-name">${state.product.name}</div>
+                    
+                    <div class="wishlist-status ${isInWishlist ? 'active' : 'inactive'}">
+                        ${isInWishlist ? '❤️ In Wishlist' : '🤍 Not in Wishlist'}
+                    </div>
+                    
+                    <span class="heart-icon ${isInWishlist ? 'active' : 'inactive'}" 
+                          onclick="window.toggleWishlist(${state.product.id})">
+                        ${isInWishlist ? '❤️' : '🤍'}
+                    </span>
+                    
+                    <button class="btn-primary" onclick="window.addToCart(${state.product.id})">
+                        Add to Cart
+                    </button>
+                    
+                    <button class="btn-secondary" onclick="window.toggleWishlist(${state.product.id})">
+                        ${isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                    </button>
+                    
+                    <div class="stats">
+                        <strong>Debug Info:</strong><br>
+                        Product ID: ${state.product.id}<br>
+                        Wishlist Items: ${state.wishlistItems.size}<br>
+                        Is in Wishlist: ${isInWishlist ? 'Yes' : 'No'}
+                    </div>
+                </div>
+            `;
+            
+            Mint.injectHTML('#app', html);
+        }
+
+        window.addToCart = state.addToCart;
+        window.toggleWishlist = state.toggleWishlist;
+
+        renderUI();
+    </script>
+</body>
+
+</html>
