@@ -52,6 +52,9 @@ void CreateContextMenu(HWND hwnd);
 void UpdateScrollbarVisibility(HWND hwnd);
 void CreateAppAcceleratorTable();
 
+void serve_mintkit_enhanced_html(SOCKET client, const char *filename);
+void serve_mintkit_api(SOCKET client, const char *request);
+
 typedef struct {
     int argc;
     char** argv;
@@ -640,7 +643,6 @@ unsigned __stdcall ServerThread(void* pArguments) {
     while (server_running) {
         SOCKET client = accept(server, NULL, NULL);
         if (client == INVALID_SOCKET) break;
-
         char *buffer = (char*)smart_malloc(2048);
         if (!buffer) {
             LogWithColor("Memory allocation failed", RGB(255, 0, 0));
@@ -648,26 +650,31 @@ unsigned __stdcall ServerThread(void* pArguments) {
             continue;
         }
         int bytes_received = recv(client, buffer, 2047, 0);
-        
         if (bytes_received > 0) {
             char method[16], path[1024];
             memset(method, 0, sizeof(method));
             memset(path, 0, sizeof(path));
-            
-            sscanf(buffer, "%15s %1023s", method, path);            
-
-            if (strcmp(path, "/reload") == 0) {
+            sscanf(buffer, "%15s %1023s", method, path);
+            char *query_params = strchr(path, '?');
+            if (query_params) {
+                *query_params = '\0'; 
+                query_params++; 
+            }
+            if (strncmp(path, "/api/mintkit/", 13) == 0) {
+                LogWithColor("[%s] %s [Mintkit API]", RGB(0, 255, 128), method, path);
+                serve_mintkit_api(client, path);
+            } else if (strcmp(path, "/reload") == 0) {
                 check_files_modified();
                 serve_reload(client);
             } else if (strcmp(path, "/live-reload.js") == 0) {
-                LogWithColor("GET %s", RGB(0, 255, 255), path);
+                LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
                 check_files_modified();
                 serve_live_script(client);
             } else if (strcmp(path, "/memory-stats") == 0) {
                 char *stats = (char*)smart_malloc(512);
                 if (stats) {
                     int stats_len = snprintf(stats, 512,
-                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\n\r\n"
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: *\r\n\r\n"
                         "{\"total_allocated\":%zu,\"active_blocks\":%d,\"pool_capacity\":%d,\"tracked_files\":%d}",
                         memory_pool ? memory_pool->total_allocated : 0,
                         memory_pool ? memory_pool->count : 0,
@@ -676,18 +683,60 @@ unsigned __stdcall ServerThread(void* pArguments) {
                     send(client, stats, stats_len, 0);
                     smart_free(stats);
                 }
-                LogWithColor("GET %s", RGB(0, 255, 255), path);
+                LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
+            } else if (strcmp(path, "/api/status") == 0) {
+                char *response = (char*)smart_malloc(1024);
+                if (response) {
+                    int response_len = snprintf(response, 1024,
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: *\r\n\r\n"
+                        "{\"status\":\"running\",\"uptime\":%ld,\"files_tracked\":%d,\"memory_usage\":%zu,\"hot_reload\":true}",
+                        (long)time(NULL), snapshot_count, memory_pool ? memory_pool->total_allocated : 0);
+                    send(client, response, response_len, 0);
+                    smart_free(response);
+                }
+                LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
             } else {
-                char *file = path + 1;  
+                char *file = path + 1;
                 if (strlen(file) == 0) {
                     file = "index.html";
                 }
-                LogWithColor("GET %s", RGB(0, 255, 255), path);
-                check_files_modified();
-                serve_file(client, file);
+                const char *ext = strrchr(file, '.');
+                if (ext && (strcmp(ext, ".html") == 0 || strcmp(ext, ".htm") == 0)) {
+                    FILE *test_file = fopen(file, "r");
+                    if (test_file) {
+                        fclose(test_file);
+                        LogWithColor("[%s] %s [Mintkit Support]", RGB(0, 255, 128), method, path);
+                        check_files_modified();
+                        serve_mintkit_enhanced_html(client, file);
+                    } else {
+                        LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
+                        check_files_modified();
+                        serve_file(client, path);
+                    }
+                } else if (!ext) {
+                    char html_file[1024];
+                    snprintf(html_file, sizeof(html_file), "%s.html", file);
+                    FILE *test_file = fopen(html_file, "r");
+                    if (test_file) {
+                        fclose(test_file);
+                        LogWithColor("[%s] %s [Mintkit Support - Auto .html]", RGB(0, 255, 128), method, path);
+                        check_files_modified();
+                        serve_mintkit_enhanced_html(client, html_file);
+                    } else {
+                        LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
+                        check_files_modified();
+                        serve_file(client, path);
+                    }
+                } else {
+                    LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
+                    check_files_modified();
+                    serve_file(client, path);
+                }
+                if (query_params) {
+                    *(query_params - 1) = '?';
+                }
             }
         }
-
         smart_free(buffer);
         closesocket(client);
     }
@@ -1090,35 +1139,86 @@ int CustomMessageBox(HWND hParent, const char* text, const char* title) {
     return ret;
 }
 
+void serve_mintkit_enhanced_html(SOCKET client, const char *filename) {
+    double start_time_ms = get_high_res_time_ms();
+    FILE *file = fopen(filename, "rb");
+    if (!file) {
+        serve_404_page(client, filename);
+        return;
+    }
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    rewind(file);
+    char *buffer = (char*)smart_malloc(size + 5000); 
+    if (!buffer) {
+        const char *error = "HTTP/1.1 500 Internal Server Error\r\n\r\nMemory allocation failed";
+        send(client, error, (int)strlen(error), 0);
+        fclose(file);
+        return;
+    }
+    size_t bytes_read = fread(buffer, 1, size, file);
+    fclose(file);
+    const char *ext = strrchr(filename, '.');
+    if (ext && strcmp(ext, ".html") == 0) {
+        char *body_end = strstr(buffer, "</body>");
+        if (body_end) {
+            const char *script_tag = "<script src=\"/live-reload.js\"></script>";
+            size_t script_len = strlen(script_tag);
+            memmove(body_end + script_len, body_end, strlen(body_end) + 1);
+            memcpy(body_end, script_tag, script_len);
+            bytes_read += script_len;
+            LogWithColor("[Mintkit] Live reload script injected: %s", RGB(0, 255, 128), filename);
+        }
+    }
+    char *header = (char*)smart_malloc(512);
+    if (!header) {
+        const char *error = "HTTP/1.1 500 Internal Server Error\r\n\r\nHeader allocation failed";
+        send(client, error, (int)strlen(error), 0);
+        smart_free(buffer);
+        return;
+    }
+    int header_len = snprintf(header, 512,
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/html; charset=utf-8\r\n"
+            "Content-Length: %zu\r\n"
+            "Cache-Control: no-cache\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "X-Mintkit-Support: true\r\n"
+            "X-Memory-Pool: %zu bytes allocated\r\n\r\n",
+            bytes_read, memory_pool ? memory_pool->total_allocated : 0);
+    send(client, header, header_len, 0);
+    send(client, buffer, bytes_read, 0);
+    smart_free(buffer);
+    smart_free(header);
+    double end_time_ms = get_high_res_time_ms();
+    LogWithColor("[Mintkit Support] %s (%zu bytes, %.3f ms)", RGB(0, 255, 128), filename, bytes_read, end_time_ms - start_time_ms);
+}
+
+void serve_mintkit_api(SOCKET client, const char *request) {
+    if (strstr(request, "/api/mintkit/status")) {
+        char response[512];
+        int response_len = snprintf(
+            response, sizeof(response),
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: application/json; charset=utf-8\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Cache-Control: no-cache\r\n\r\n"
+            "{\"framework\":\"Mintkit\",\"version\":\"1.0\",\"status\":\"active\"," \
+            "\"memory_usage\":%zu,\"files_watched\":%d}",
+            memory_pool ? memory_pool->total_allocated : 0,
+            snapshot_count
+        );
+        send(client, response, response_len, 0);
+        LogWithColor("[Mintkit API] Status", RGB(0, 255, 128));
+    } else {
+        serve_404_page(client, request);
+    }
+}
+
 /*  
     Compile using:
     gcc -O2 LiveServer.c -o LiveServer.exe -lws2_32 -lshell32 -mwindows -ldwmapi -luxtheme
     
+    Than run  ./liveserver.exe path
     Then open http://localhost:3000
-    
-    Enhanced Features:
-    - Real-time file change detection with line-by-line diff
-    - High-resolution millisecond timing for performance monitoring
-    - Enhanced hot reload with detailed timing statistics
-    - Minimal syntax highlighting with color-coded messages
-    - Full dark mode support with optimized colors
-    - HTTP status text (GET) for request logging
-    - Tracks HTML, CSS, JS, JSON, TS, TSX, JSX files
-    - Shows added (+), removed (-), and modified (~) lines
-    - Performance monitoring with millisecond precision
-    - Memory pool management with efficiency metrics
-    - New endpoints: /reload, /memory-stats, /performance
-    - File processing time tracking per file
-    - Server response time monitoring
-    - Memory pool efficiency calculation
-    - Minimal log design with color-coded messages:
-      * Green: Success messages and server ready
-      * Cyan: HTTP requests and file tracking
-      * Yellow: Warnings and hot reload
-      * Orange: Info, 404 errors and cleanup
-      * Red: Errors and memory issues
-      * Blue: Performance and stats
-      * Gray: Separators and metadata
-    - Dark mode optimized color scheme
-    - Background colors: #0f0f0f (dark) / #ffffff (light)
 */

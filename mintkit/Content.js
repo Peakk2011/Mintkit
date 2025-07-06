@@ -268,7 +268,6 @@ export const WebContent = {
         IntroduceAnimationName: 'IntroduceAnimation',
     },
 
-    // Reset ค่าเรื่มต้นเป็น CSS preset styling
     Normalize: {
         CALL: `${WebElements.Units.CSSSize.boxSizing};`,
         Unset: `
@@ -284,7 +283,6 @@ export const WebContent = {
         }
     },
 
-    // Force สำหรับการ rendering ข้อความในเเว็บ
     TextRendering: {
         ForceGrayStyleRendering: `
             -webkit-font-smoothing: antialiased;
@@ -313,7 +311,7 @@ export const WebContent = {
         `,
     },
 
-    // เราสามารถคัดลองอีกไปวางใน main ตาม layout ที่เราต้องการว่าจะมีเท่าใหร่
+    // �ราสามารถคัดลองอีกไปวางใน main ตาม layout ที่�ราต้องการว่าจะมี�ท่าไหร่
     ElementComponents() {
         return `
             ${this.HTMLContent.Introduce()}
@@ -327,7 +325,7 @@ export const WebContent = {
         `;
     },
 
-    // เช่นกันกับ CSS ว่าเราต้องการให้ไป style ในส่วนใหน
+    // �ช่นกันกับ CSS ว่า�ราต้องการให้ไป style ในส่วนไหน
     StyledElementComponents() {
         if (this._cachedCSS) return this._cachedCSS;
 
