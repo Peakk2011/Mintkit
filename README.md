@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="https://drive.google.com/uc?id=1tcAEV3cKmi2YCMHhAvW3KlXI6bwqc9uy" height="180px"></img>
+  <img src="https://drive.google.com/uc?id=1tcAEV3cKmi2YCMHhAvW3KlXI6bwqc9uy" height="180px" width="180px"></img>
 </p>
 
 <h1 align="center">Mintkit</h1>
