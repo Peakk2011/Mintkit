@@ -1,10 +1,6 @@
-// functional utilities
-
 /**
  * Mintkit Framework Core
- * Author: Peakk (https://github.com/Peakk2011)
- * Version: 0.1.0
- * License: MIT
+ * Waring if you edit when wrong framework cant be use
  */
 
 export const pipe = function () {
@@ -431,14 +427,89 @@ export function injectTitle(titleHtmlString) {
     }
 }
 
-// Enhanced development hook with better error handling and configuration
+/**
+ * @param {string} url
+ * @param {string} [targetSelector]
+ * @returns {Promise<void|HTMLElement>}
+ */
+export async function get(url, targetSelector) {
+    if (!url || typeof url !== 'string') {
+        throw new Error('get: url must be a string');
+    }
+    const lower = url.toLowerCase();
+    if (lower.endsWith('.css')) {
+        if (document.querySelector(`link[href="${url}"]`)) {
+            return;
+        }
+        return new Promise((resolve, reject) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = url;
+            link.onload = () => resolve(link);
+            link.onerror = (e) => reject(e);
+            document.head.appendChild(link);
+        });
+    } else if (lower.endsWith('.html') || lower.endsWith('.htm')) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`get: HTTP ${res.status}`);
+        const html = await res.text();
+        const selector = targetSelector || 'body';
+        const target = document.querySelector(selector);
+        if (target) {
+            target.insertAdjacentHTML('beforeend', html);
+            return target;
+        }
+        throw new Error(`get: No element matches selector: ${selector}`);
+    } else {
+        throw new Error('get: Only .css, .html, .htm files are supported');
+    }
+}
+
+export const include = get;
+
+export async function processIncludes(context = document) {
+    const includeRegex = /@include\(['"]([^'"]+)['"]\)/g;
+    const walker = document.createTreeWalker(
+        context.body || context,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+    );
+    let node;
+    const tasks = [];
+    while ((node = walker.nextNode())) {
+        let match;
+        let text = node.nodeValue;
+        let replaced = false;
+        while ((match = includeRegex.exec(text))) {
+            const file = match[1];
+            tasks.push(
+                (async () => {
+                    if (file.endsWith('.css')) {
+                        await get(file);
+                    } else if (file.endsWith('.html') || file.endsWith('.htm')) {
+                        const res = await fetch(file);
+                        if (res.ok) {
+                            const html = await res.text();
+                            node.nodeValue = node.nodeValue.replace(match[0], html);
+                        }
+                    }
+                })()
+            );
+            replaced = true;
+        }
+    }
+    await Promise.all(tasks);
+}
+
 export const AdjustHook = (options = {}) => {
     const config = {
         interval: options.interval || 1000,
         endpoint: options.endpoint || "/reload",
         onReload: options.onReload || (() => location.reload()),
         onError: options.onError || ((error) => console.warn('AdjustHook: Reload check failed:', error)),
-        enabled: options.enabled !== false // Default to enabled
+        enabled: options.enabled !== false, 
+        performanceMonitoring: options.performanceMonitoring !== false // Default to enabled
     };
     
     if (!config.enabled) {
@@ -448,12 +519,22 @@ export const AdjustHook = (options = {}) => {
     
     let intervalId = null;
     let isChecking = false;
+    let stats = {
+        requests: 0,
+        errors: 0,
+        totalTime: 0,
+        avgTime: 0,
+        lastCheckTime: 0
+    };
     
     const checkReload = async () => {
         if (isChecking) return;
         
         isChecking = true;
+        const startTime = performance.now();
+        
         try {
+            stats.requests++;
             const response = await fetch(config.endpoint, {
                 method: 'GET',
                 cache: 'no-cache',
@@ -468,29 +549,50 @@ export const AdjustHook = (options = {}) => {
             
             const data = await response.json();
             if (data && data.reload) {
-                console.info('AdjustHook: Reload triggered by server');
+                const responseTime = performance.now() - startTime;
+                console.info(`AdjustHook: Reload triggered by server (Response: ${responseTime.toFixed(2)}ms, Memory: ${data.memory_usage || 0} bytes)`);
                 config.onReload();
             }
         } catch (error) {
             // Only log errors in development
             if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                stats.errors++;
                 config.onError(error);
             }
         } finally {
             isChecking = false;
+            
+            // Update performance stats
+            const endTime = performance.now();
+            const requestTime = endTime - startTime;
+            stats.totalTime += requestTime;
+            stats.avgTime = stats.totalTime / stats.requests;
+            stats.lastCheckTime = requestTime;
+            
+            // Log performance stats every 10 requests if monitoring is enabled
+            if (config.performanceMonitoring && stats.requests % 10 === 0) {
+                console.log(`AdjustHook Stats: ${stats.requests} requests, ${stats.errors} errors, Avg: ${stats.avgTime.toFixed(2)}ms, Last: ${requestTime.toFixed(2)}ms`);
+            }
         }
     };
     
     // Start checking
     intervalId = setInterval(checkReload, config.interval);
-    console.debug(`AdjustHook: Started reload checking every ${config.interval}ms`);
+    console.debug(`AdjustHook: Started reload checking every ${config.interval}ms with performance monitoring`);
     
-    // Return cleanup function
-    return () => {
-        if (intervalId) {
-            clearInterval(intervalId);
-            console.debug('AdjustHook: Stopped reload checking');
-        }
+    // Return cleanup function with stats
+    return {
+        stop: () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+                console.debug('AdjustHook: Stopped reload checking');
+                if (config.performanceMonitoring) {
+                    console.log(`AdjustHook Final Stats: ${stats.requests} requests, ${stats.errors} errors, Avg response: ${stats.avgTime.toFixed(2)}ms`);
+                }
+            }
+        },
+        getStats: () => ({ ...stats }),
+        getLastCheckTime: () => stats.lastCheckTime
     };
 };
 
@@ -515,5 +617,111 @@ export const MintUtils = {
         } catch {
             return a === b;
         }
+    }
+};
+
+// Performance monitoring utility
+export const PerformanceMonitor = {
+    timers: new Map(),
+    
+    start(label) {
+        this.timers.set(label, performance.now());
+        return this;
+    },
+    
+    end(label) {
+        const startTime = this.timers.get(label);
+        if (startTime) {
+            const duration = performance.now() - startTime;
+            this.timers.delete(label);
+            console.log(`${label}: ${duration.toFixed(2)}ms`);
+            return duration;
+        }
+        return 0;
+    },
+    
+    measure(label, fn) {
+        this.start(label);
+        const result = fn();
+        this.end(label);
+        return result;
+    },
+    
+    async measureAsync(label, fn) {
+        this.start(label);
+        const result = await fn();
+        this.end(label);
+        return result;
+    },
+    
+    getStats() {
+        const stats = {};
+        for (const [label, startTime] of this.timers) {
+            stats[label] = performance.now() - startTime;
+        }
+        return stats;
+    },
+    
+    clear() {
+        this.timers.clear();
+    }
+};
+
+// Enhanced reload performance tracker
+export const ReloadPerformanceTracker = {
+    history: [],
+    maxHistory: 100,
+    
+    recordReload(duration, fileCount = 0, memoryUsage = 0) {
+        const entry = {
+            timestamp: Date.now(),
+            duration,
+            fileCount,
+            memoryUsage,
+            date: new Date().toISOString()
+        };
+        
+        this.history.push(entry);
+        
+        // Keep only the last maxHistory entries
+        if (this.history.length > this.maxHistory) {
+            this.history.shift();
+        }
+        
+        console.log(`Reload recorded: ${duration.toFixed(2)}ms, Files: ${fileCount}, Memory: ${memoryUsage} bytes`);
+        return entry;
+    },
+    
+    getStats() {
+        if (this.history.length === 0) return null;
+        
+        const durations = this.history.map(h => h.duration);
+        const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
+        const min = Math.min(...durations);
+        const max = Math.max(...durations);
+        
+        return {
+            totalReloads: this.history.length,
+            averageTime: avg,
+            minTime: min,
+            maxTime: max,
+            lastReload: this.history[this.history.length - 1]
+        };
+    },
+    
+    logStats() {
+        const stats = this.getStats();
+        if (stats) {
+            console.log(`Reload Performance Stats:`);
+            console.log(`   Total reloads: ${stats.totalReloads}`);
+            console.log(`   Average time: ${stats.averageTime.toFixed(2)}ms`);
+            console.log(`   Min time: ${stats.minTime.toFixed(2)}ms`);
+            console.log(`   Max time: ${stats.maxTime.toFixed(2)}ms`);
+            console.log(`   Last reload: ${stats.lastReload.duration.toFixed(2)}ms`);
+        }
+    },
+    
+    clear() {
+        this.history = [];
     }
 };

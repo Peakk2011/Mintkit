@@ -456,7 +456,13 @@ void serve_404_page(SOCKET client, const char* requested_file) {
 void serve_file(SOCKET client, const char *filename) {
     double start_time_ms = get_high_res_time_ms();
     
-    FILE *file = fopen(filename, "rb");
+    // Handle both relative and absolute paths
+    const char *file_to_open = filename;
+    if (filename[0] == '/') {
+        file_to_open = filename + 1; // Remove leading slash
+    }
+    
+    FILE *file = fopen(file_to_open, "rb");
     if (!file) {
         serve_404_page(client, filename);
         return;
@@ -700,8 +706,13 @@ unsigned __stdcall ServerThread(void* pArguments) {
                 if (strlen(file) == 0) {
                     file = "index.html";
                 }
+                
                 const char *ext = strrchr(file, '.');
-                if (ext && (strcmp(ext, ".html") == 0 || strcmp(ext, ".htm") == 0)) {
+                if (ext && strcmp(ext, ".css") == 0) {
+                    LogWithColor("[%s] %s [CSS File]", RGB(0, 255, 255), method, path);
+                    check_files_modified();
+                    serve_file(client, file);
+                } else if (ext && (strcmp(ext, ".html") == 0 || strcmp(ext, ".htm") == 0)) {
                     FILE *test_file = fopen(file, "r");
                     if (test_file) {
                         fclose(test_file);
@@ -711,7 +722,7 @@ unsigned __stdcall ServerThread(void* pArguments) {
                     } else {
                         LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
                         check_files_modified();
-                        serve_file(client, path);
+                        serve_file(client, file);
                     }
                 } else if (!ext) {
                     char html_file[1024];
@@ -725,12 +736,12 @@ unsigned __stdcall ServerThread(void* pArguments) {
                     } else {
                         LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
                         check_files_modified();
-                        serve_file(client, path);
+                        serve_file(client, file);
                     }
                 } else {
                     LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
                     check_files_modified();
-                    serve_file(client, path);
+                    serve_file(client, file);
                 }
                 if (query_params) {
                     *(query_params - 1) = '?';
@@ -1141,7 +1152,13 @@ int CustomMessageBox(HWND hParent, const char* text, const char* title) {
 
 void serve_mintkit_enhanced_html(SOCKET client, const char *filename) {
     double start_time_ms = get_high_res_time_ms();
-    FILE *file = fopen(filename, "rb");
+    
+    const char *file_to_open = filename;
+    if (filename[0] == '/') {
+        file_to_open = filename + 1; // Remove leading slash
+    }
+    
+    FILE *file = fopen(file_to_open, "rb");
     if (!file) {
         serve_404_page(client, filename);
         return;

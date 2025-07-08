@@ -1,4 +1,8 @@
-// functional utilities
+/**
+ * Mintkit Framework Core
+ * Waring if you edit when wrong framework cant be use
+ */
+
 export const pipe = function () {
     const a = arguments;
     const len = a.length;
@@ -423,14 +427,88 @@ export function injectTitle(titleHtmlString) {
     }
 }
 
-// Enhanced development hook with better error handling and configuration
+/**
+ * @param {string} url
+ * @param {string} [targetSelector]
+ * @returns {Promise<void|HTMLElement>}
+ */
+export async function get(url, targetSelector) {
+    if (!url || typeof url !== 'string') {
+        throw new Error('get: url must be a string');
+    }
+    const lower = url.toLowerCase();
+    if (lower.endsWith('.css')) {
+        if (document.querySelector(`link[href="${url}"]`)) {
+            return;
+        }
+        return new Promise((resolve, reject) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = url;
+            link.onload = () => resolve(link);
+            link.onerror = (e) => reject(e);
+            document.head.appendChild(link);
+        });
+    } else if (lower.endsWith('.html') || lower.endsWith('.htm')) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`get: HTTP ${res.status}`);
+        const html = await res.text();
+        const selector = targetSelector || 'body';
+        const target = document.querySelector(selector);
+        if (target) {
+            target.insertAdjacentHTML('beforeend', html);
+            return target;
+        }
+        throw new Error(`get: No element matches selector: ${selector}`);
+    } else {
+        throw new Error('get: Only .css, .html, .htm files are supported');
+    }
+}
+
+export const include = get;
+
+export async function processIncludes(context = document) {
+    const includeRegex = /@include\(['"]([^'"]+)['"]\)/g;
+    const walker = document.createTreeWalker(
+        context.body || context,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+    );
+    let node;
+    const tasks = [];
+    while ((node = walker.nextNode())) {
+        let match;
+        let text = node.nodeValue;
+        let replaced = false;
+        while ((match = includeRegex.exec(text))) {
+            const file = match[1];
+            tasks.push(
+                (async () => {
+                    if (file.endsWith('.css')) {
+                        await get(file);
+                    } else if (file.endsWith('.html') || file.endsWith('.htm')) {
+                        const res = await fetch(file);
+                        if (res.ok) {
+                            const html = await res.text();
+                            node.nodeValue = node.nodeValue.replace(match[0], html);
+                        }
+                    }
+                })()
+            );
+            replaced = true;
+        }
+    }
+    await Promise.all(tasks);
+}
+
 export const AdjustHook = (options = {}) => {
     const config = {
         interval: options.interval || 1000,
         endpoint: options.endpoint || "/reload",
         onReload: options.onReload || (() => location.reload()),
         onError: options.onError || ((error) => console.warn('AdjustHook: Reload check failed:', error)),
-        enabled: options.enabled !== false, // Default to enabled
+        enabled: options.enabled !== false, 
         performanceMonitoring: options.performanceMonitoring !== false // Default to enabled
     };
     
