@@ -1,5 +1,6 @@
+
 <p align="center">
-  <img src="https://drive.google.com/uc?id=1tcAEV3cKmi2YCMHhAvW3KlXI6bwqc9uy" height="180px"></img>
+  <img src="https://drive.google.com/uc?id=1tcAEV3cKmi2YCMHhAvW3KlXI6bwqc9uy" height="180px" width="180px"></img>
 </p>
 
 <h1 align="center">Mintkit</h1>
@@ -172,14 +173,14 @@ npm start
 ## 📁 Project Structure
 ```
 Mintkit.js Framework/
-├── mintkit/                    # Core framework
-│   ├── lib/                   # Library files
-│   ├── Content.js            # Content and styling
-│   ├── app.js               # Main application
-│   └── index.html           # Entry point
-├── mintkit-electron/         # Electron desktop app
-├── mintkit-purehtml/         # Pure HTML example
-└── documents/               # Documentation
+├── mintkit/                       # Core framework
+│   ├── lib/                       # Library files
+│   ├── Content.js                 # Content and styling
+│   ├── app.js                     # Main application
+│   └── index.html                 # Entry point
+├── mintkit-electron/              # Electron desktop app
+├── mintkit-purehtml/              # Pure HTML example
+└── documents/                     # Documentation
 ```
 
 ## 📖 Documentation
