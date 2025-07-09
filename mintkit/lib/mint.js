@@ -10,7 +10,8 @@ import {
     createState,
     MintUtils,
     PerformanceMonitor,
-    ReloadPerformanceTracker
+    ReloadPerformanceTracker,
+    AdjustHook
 } from './MintUtils.js';
 import { MintAssembly } from './HTMLInterpreter.js';
 
