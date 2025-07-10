@@ -1,7 +1,7 @@
 {
   "name": "mintkit",
   "version": "0.1.0",
-  "description": "A dynamic vanilla web framework",
+  "description": "Mintkit built with Mint teams",
   "author": {
     "name": "Peakk",
     "url": "https://github.com/Peakk2011"
@@ -10,5 +10,20 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Peakk2011/Mintkit.git"
-  }
+  },
+  "bin": {
+    "create-mint-app": "./templates-cli/cli.js"
+  },
+  "files": [
+    "templates-cli/cli.js",
+    "templates-cli/template/**/*"
+  ],
+  "keywords": [
+    "mintkit",
+    "framework",
+    "vanilla-js",
+    "web-framework",
+    "cli",
+    "create-app"
+  ]
 }

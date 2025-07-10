@@ -1,0 +1,34 @@
+{
+  "name": "create-mint-app",
+  "version": "1.0.0",
+  "description": "CLI tool to create a new Mintkit application",
+  "main": "cli.js",
+  "bin": {
+    "create-mint-app": "./cli.js"
+  },
+  "keywords": [
+    "mintkit",
+    "framework",
+    "cli",
+    "create-app",
+    "vanilla-js",
+    "web-framework"
+  ],
+  "author": {
+    "name": "Peakk",
+    "url": "https://github.com/Peakk2011"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Peakk2011/Mintkit.git"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "cli.js",
+    "template/**/*",
+    "README.md"
+  ]
+} 
