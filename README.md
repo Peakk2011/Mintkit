@@ -144,16 +144,6 @@ const darkTheme = {
 WebContent.initThemeSystem();
 ```
 
-### MintAssembly Programming
-```html
-<Entry>
-    <mov dst="ax" src="200"></mov>
-    <mov dst="bx" src="100"></mov>
-    <add dst="ax" src="bx"></add>
-    <print var="ax"></print>
-</Entry>
-```
-
 ## 🔧 Development
 
 ### Live Reload Server
@@ -163,32 +153,21 @@ cd mintkit
 # Open http://localhost:3000
 ```
 
-### Electron App
-```bash
-cd mintkit-electron
-npm install
-npm start
-```
-
 ## 📁 Project Structure
 ```
 Mintkit.js Framework/
-├── mintkit/                       # Core framework
-│   ├── lib/                       # Library files
+├── src/                           # Framework path
+│   ├── lib/                       # Framework core files
 │   ├── Content.js                 # Content and styling
-│   ├── app.js                     # Main application
+│   ├── App.js                     # Main application
+│   ├── EventHandle.js             # Events
 │   └── index.html                 # Entry point
-├── mintkit-electron/              # Electron desktop app
-├── mintkit-purehtml/              # Pure HTML example
-└── documents/                     # Documentation
+│   └── LiveServer.exe             # Live server
+├── live-reload.js                 # Live reload for Mintkit liveserver hook
+├── package.json                   # Json file config for Mintkit
+└── README.html                    # Documentation
+└── sw.js                          # Service worker
 ```
-
-## 📖 Documentation
-
-For detailed documentation, examples, and advanced usage, see:
-- **[Complete Documentation](documents/MintkitJS_EXPLAIN.MD)** - Comprehensive guide
-- **Examples** - Check the `mintkit-purehtml/` directory
-- **Electron App** - See `mintkit-electron/` for desktop applications
 
 ## 🌟 Contributing
 
