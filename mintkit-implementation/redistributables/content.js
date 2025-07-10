@@ -1,11 +1,15 @@
+import { WebElements } from './design/units.js';
+import { WebConfig } from './design/default.js';
+
 export const WebContent = {
     components: `
-        <h1 id="Intoduction">This is Mintkit framework</h1>
+        <!-- Enter html code here -->
     `,
     stylesheet: `
-        #Intoduction {
-            font-size: 32px;
-            font-weight: 700;
-        }
+        /*
+            Enter your CSS code here 
+            With Mintkit user-agent-stylesheet build-in
+        */
+        ${WebConfig.cssReset}
     `
 }

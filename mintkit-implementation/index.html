@@ -18,10 +18,10 @@
     <div id="app"></div>
     <script type="module">
         import { Mint } from '/framework/mint.js';
-        import { WebContent } from './redistributables/content.js';
+        import { WebContent } from '/redistributables/content.js';
 
         const App = async () => {
-            await Mint.include('./redistributables/default.css');
+            await Mint.include('/redistributables/style.css'); // Your Custom CSS goes here
 
             const root = {
                 html : WebContent.components,

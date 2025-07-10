@@ -2,13 +2,11 @@ import { Mint } from './lib/mint.js';
 import { Webfunctions } from './EventHandle.js';
 import { WebContent, WebElements } from './Content.js';
 
-// Configuration
 const ROOT = '#app';
 const MAIN_CONTAINER_ID = 'ROOT';
 const MAIN_STYLESHEET_ID = 'main-dynamic-stylesheet';
 const FONT_STYLESHEET_ID = 'fonts-stylesheet';
 
-// Cache and state management
 const cache = {
     head: document.head,
     target: document.querySelector(ROOT),
@@ -32,7 +30,6 @@ const Logger = {
 let renderQueued = false;
 let lastHTML = '';
 
-// Main application function
 const MintApp = (() => {
     const setHTMLtitle = `<title>${WebContent.PageTitle}</title>`;
     const containerRoot = `<div id="${MAIN_CONTAINER_ID}">`;
@@ -130,5 +127,4 @@ const MintApp = (() => {
     return { init };
 })();
 
-// Initialize the application
 MintApp.init();

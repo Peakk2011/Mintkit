@@ -1,10 +1,10 @@
 {
   "name": "create-mint-app",
-  "version": "1.0.0",
+  "version": "1.0.60",
   "description": "CLI tool to create a new Mintkit application",
   "main": "cli.js",
   "bin": {
-    "create-mint-app": "./cli.js"
+    "create-mint-app": "cli.js"
   },
   "keywords": [
     "mintkit",
@@ -28,7 +28,10 @@
   },
   "files": [
     "cli.js",
-    "template/**/*",
+    "mintkit-app/**/*",
     "README.md"
-  ]
-} 
+  ],
+  "dependencies": {
+    "inquirer": "^12.7.0"
+  }
+}
