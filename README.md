@@ -219,4 +219,5 @@ We welcome all contributions to **Mintkit**! Here's how you can help to improve:
 
 ---
 
+`npx create-mint-app` to create Mintkit project
 **Mintkit** - Making web development dynamic and more customizable way.
