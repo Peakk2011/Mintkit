@@ -5,17 +5,17 @@ import {
     injectTitle,
     injectCSS,
     injectHTML,
+    createState,
+    AdjustHook,
     pipe,
     compose,
-    createState,
     MintUtils,
     PerformanceMonitor,
-    ReloadPerformanceTracker,
-    AdjustHook
-} from './MintUtils.js';
-import { MintAssembly } from './HTMLInterpreter.js';
+    ReloadPerformanceTracker
+} from './lib/MintUtils.js';
+import { MintAssembly } from './lib/HTMLInterpreter.js';
 
-export { get, include, processIncludes, injectTitle } from './MintUtils.js';
+export { get, include, processIncludes, injectTitle } from '../../mintkit/lib/MintUtils.js';
 
 export const Mint = {
     get,

@@ -1,0 +1,41 @@
+<!-- 
+    This is Mintkit framework implementation for sample website
+    That develop with Mintkit framework
+    This files show Utils function such as injectHTML
+    About CSS and other using injectTitle,injectCSS
+-->
+    
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mintkit framework</title>
+</head>
+
+<body>
+    <div id="app"></div>
+    <script type="module">
+        import { Mint } from '/framework/mint.js';
+        import { WebContent } from './redistributables/content.js';
+
+        const App = async () => {
+            await Mint.include('./redistributables/default.css');
+
+            const root = {
+                html : WebContent.components,
+                css  : WebContent.stylesheet
+            };
+
+            requestAnimationFrame(() => {
+                Mint.injectHTML('#app', root.html)
+                Mint.injectCSS(root.css)
+            });
+        };
+
+        App();
+    </script>
+</body>
+
+</html>
