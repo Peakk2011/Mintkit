@@ -12,10 +12,10 @@ import {
     MintUtils,
     PerformanceMonitor,
     ReloadPerformanceTracker
-} from './lib/MintUtils.js';
-import { MintAssembly } from './lib/HTMLInterpreter.js';
+} from './MintUtils.js';
+import { MintAssembly } from './HTMLInterpreter.js';
 
-export { get, include, processIncludes, injectTitle } from '../../mintkit/lib/MintUtils.js';
+export { get, include, processIncludes, injectTitle } from './MintUtils.js';
 
 export const Mint = {
     get,

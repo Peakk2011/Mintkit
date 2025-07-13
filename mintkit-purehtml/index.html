@@ -13,195 +13,34 @@
     Content Object → Template → Dynamic CSS → Injection → DOM
 
 -->
-
+    
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
-    <script type="module">
-        // Importing Mintkit utilities
-        import {
-            createState,
-            injectCSS,
-            injectHTML,
-            injectTitle
-        } from 'https://cdn.jsdelivr.net/gh/Peakk2011/Mintkit@main/mintkit/lib/MintUtils.js';
-        //  Define the root element for the application
-        const ROOT = '#app';
-
-        const content = {
-            title: 'Mintkit',
-            description: `
-                Mintkit is a web framework<br>
-                designed to deliver efficient,<br>
-                scalable, and maintainable<br>
-                web development experiences.
-            `,
-            keywords: 'Mintkit, JavaScript, framework, web development',
-            edit: 'Edit <code>index.html</code> to changes.',
-            // style structure object
-            CSS: {
-                body: {
-                    'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-                    'background-color': '#faf9f6'
-                },
-                '.card': {
-                    background: '#faf9f6',
-                    'text-align': 'center',
-                    CenterAlignment: `
-                        position: absolute;
-                        top: 50%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);   
-                        min-width: max-content;
-                        max-width: max-content;
-                    `,
-                },
-                '.card-title': {
-                    color: '#000000',
-                    'font-size': '64px',
-                    'font-family': '"Inter", sans-serif',
-                    'font-weight': '540',
-                    'text-shadow': '0px 5px 20px rgba(82,82,82,0.28)',
-                    'margin-bottom': '1.5rem',
-                },
-                '.card p': {
-                    color: '#242424',
-                    'font-size': '22px',
-                    'font-family': '"DM Sans", sans-serif',
-                },
-                '.card svg': {
-                    height: '64px',
-                    width: 'auto',
-                    transform: 'translateY(8px)',
-                },
-                '.card span': {
-                    color: '#000',
-                    'font-size': '18px',
-                    'font-family': '"DM Sans", monospace',
-                    display: 'block',
-                    'margin-top': '2rem',
-                },
-                '.card span code': {
-                    'font-family': '"JetBrains Mono", monospace',
-                    padding: '0.2rem 0.4rem',
-                    'background-color': '#e3e2df',
-                }
-            },
-            Class: {
-                card: '.card',
-                cardTitle: '.card-title',
-            }
-        };
-
-        const { CSS, Class } = content;
-
-        // Create CSS that can be used
-        const stylesheet = `
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
-        
-            * { padding: 0; margin: 0; box-sizing: border-box; }
-
-            body {
-                font-family: ${CSS.body['font-family']};
-                background-color: ${CSS.body['background-color']};
-            }
-
-            ${Class.card} {
-                background: ${CSS['.card'].background};
-                text-align: ${CSS['.card']['text-align']};
-                ${CSS['.card'].CenterAlignment};
-            }
-                
-            ${Class.cardTitle} {
-                color: ${CSS['.card-title'].color};
-                font-size: ${CSS['.card-title']['font-size']};
-                font-family: ${CSS['.card-title']['font-family']};
-                font-weight: ${CSS['.card-title']['font-weight']};
-                text-shadow: ${CSS['.card-title']['text-shadow']};
-                margin-bottom: ${CSS['.card-title']['margin-bottom']};
-            }
-
-            ${Class.card} svg {
-                height: ${CSS['.card svg'].height};
-                width: ${CSS['.card svg']['width']};
-                transform: ${CSS['.card svg']['transform']};
-            }
-
-            ${Class.card} p {
-                color: ${CSS['.card p'].color};
-                font-size: ${CSS['.card p']['font-size']};
-                font-family: ${CSS['.card p']['font-family']};
-            }
-
-            ${Class.card} span {
-                color: ${CSS['.card span'].color};
-                font-size: ${CSS['.card span']['font-size']};
-                font-family: ${CSS['.card span']['font-family']};
-                display: ${CSS['.card span']['display']};
-                margin-top: ${CSS['.card span']['margin-top']};
-            }
-
-            ${Class.card} span code {
-                font-family: ${CSS['.card span code']['font-family']};
-                padding: ${CSS['.card span code'].padding};
-                background-color: ${CSS['.card span code']['background-color']};
-            }
-        `;
-
-        const html = `
-            <div class="card">
-                <h1 class="card-title">
-                    <svg width="384" height="383" viewBox="0 0 384 383" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="153" y="343" width="79" height="40" fill="black"/>
-                        <rect x="153" width="79" height="40" fill="black"/>
-                        <rect x="230" y="305" width="41" height="40" fill="black"/>
-                        <rect x="307" y="229" width="39" height="40" fill="black"/>
-                        <rect x="269" y="267" width="40" height="40" fill="black"/>
-                        <rect x="344" y="154" width="40" height="76" fill="black"/>
-                        <rect y="153" width="40" height="77" fill="black"/>
-                        <rect x="306" y="116" width="40" height="39" fill="black"/>
-                        <rect width="40" height="39" transform="matrix(-1 0 0 1 78 116)" fill="black"/>
-                        <rect width="40" height="39" transform="matrix(-1 0 0 1 78 229)" fill="black"/>
-                        <rect width="40" height="39" transform="matrix(-1 0 0 1 116 268)" fill="black"/>
-                        <rect width="40" height="39" transform="matrix(-1 0 0 1 153 306)" fill="black"/>
-                        <rect x="268" y="77" width="41" height="40" fill="black"/>
-                        <rect width="41" height="40" transform="matrix(-1 0 0 1 116 77)" fill="black"/>
-                        <rect x="230" y="40" width="41" height="39" fill="black"/>
-                        <rect width="41" height="39" transform="matrix(-1 0 0 1 154 40)" fill="black"/>
-                        <path d="M172.5 268.5H211V229.5H230.5V191.5H209.5V213H177.5V191.5H153V229.5H172.5V268.5Z" fill="black" stroke="black"/>
-                        <path d="M152.5 153.5H114.5V191.5H152.5V153.5Z" fill="black"/>
-                        <path d="M230.5 191.5H269.5V153.5H230.5V191.5Z" fill="black"/>
-                        <path d="M230.5 153.5V116H152.5V153.5H230.5Z" fill="black"/>
-                        <path d="M230.5 153.5H269.5V191.5H230.5V153.5ZM230.5 153.5V116H152.5V153.5M230.5 153.5H152.5M152.5 153.5H114.5V191.5H152.5V153.5Z" stroke="black"/>
-                    </svg>
-                    ${content.title}
-                </h1>
-                <p>${content.description}</p>
-                <span>${content.edit}</span>
-            </div>
-        `;
-
-        injectCSS(stylesheet); // Called CSS
-        injectHTML(ROOT, html); // Inject HTML into the root element #app -> ROOT
-        injectTitle(`<title>${content.title}</title>`);  // Inject title into the document <head>
-
-        // SEO Meta Tag Injection
-        const metaDescription = document.createElement('meta');
-        metaDescription.name = 'description';
-        metaDescription.content = content.description.replace(/<br\s*\/?>/g, ' ');
-        document.head.appendChild(metaDescription);
-
-        const metaKeywords = document.createElement('meta');
-        metaKeywords.name = 'keywords';
-        metaKeywords.content = content.keywords;
-        document.head.appendChild(metaKeywords);
-    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mintkit pure HTML</title>
 </head>
-
 <body>
-    <div id="app">Mintkit Framework</div>
-</body>
+    <div id="app"></div>
 
+    <script type="module">
+        import { Mint } from "https://cdn.jsdelivr.net/gh/Peakk2011/Mintkit_CDN/mint.min.js";
+
+        const app = async () => {
+            const root = {
+                html: `
+                    
+                `
+            }
+
+            queueMicrotask(() => {
+                Mint.injectHTML("#app",root.html);
+            })
+        }
+
+        app();
+    </script>
+
+</body>
 </html>
