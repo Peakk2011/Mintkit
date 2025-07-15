@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include <thread>
 #include <mutex>
 #include <chrono>
@@ -13,6 +13,9 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
+#include <string_view>
+#include <array>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -23,13 +26,81 @@
 #else
     #include <sys/socket.h>
     #include <netinet/in.h>
+    #include <netinet/tcp.h>
     #include <arpa/inet.h>
     #include <unistd.h>
     #include <signal.h>
     #include <sys/select.h>
+    #include <sys/stat.h>
+    #include <fcntl.h>
 #endif
 
 namespace fs = std::filesystem;
+
+class MemoryPool {
+private:
+    static constexpr size_t POOL_SIZE = 1024 * 1024; // 1MB
+    static constexpr size_t BLOCK_SIZE = 4096;
+    
+    std::vector<std::array<char, BLOCK_SIZE>> blocks;
+    std::vector<bool> used;
+    std::mutex poolMutex;
+    
+public:
+    MemoryPool() {
+        size_t numBlocks = POOL_SIZE / BLOCK_SIZE;
+        blocks.reserve(numBlocks);
+        used.reserve(numBlocks);
+        
+        for (size_t i = 0; i < numBlocks; ++i) {
+            blocks.emplace_back();
+            used.push_back(false);
+        }
+    }
+    
+    char* acquire() {
+        std::lock_guard<std::mutex> lock(poolMutex);
+        for (size_t i = 0; i < used.size(); ++i) {
+            if (!used[i]) {
+                used[i] = true;
+                return blocks[i].data();
+            }
+        }
+        return nullptr; // He just tried lol
+    }
+    
+    void release(char* ptr) {
+        std::lock_guard<std::mutex> lock(poolMutex);
+        for (size_t i = 0; i < blocks.size(); ++i) {
+            if (blocks[i].data() == ptr) {
+                used[i] = false;
+                return;
+            }
+        }
+    }
+};
+
+// RAII
+class PooledBuffer {
+private:
+    MemoryPool& pool;
+    char* buffer;
+    
+public:
+    PooledBuffer(MemoryPool& p) : pool(p), buffer(p.acquire()) {}
+    ~PooledBuffer() { if (buffer) pool.release(buffer); }
+    
+    char* get() const { return buffer; }
+    bool valid() const { return buffer != nullptr; }
+    
+    PooledBuffer(const PooledBuffer&) = delete;
+    PooledBuffer& operator=(const PooledBuffer&) = delete;
+    
+    PooledBuffer(PooledBuffer&& other) noexcept 
+        : pool(other.pool), buffer(other.buffer) {
+        other.buffer = nullptr;
+    }
+};
 
 class Socket {
 private:
@@ -69,6 +140,11 @@ public:
 #else
         sock = socket(AF_INET, SOCK_STREAM, 0);
         valid = (sock >= 0);
+        
+        if (valid) {
+            int flags = fcntl(sock, F_GETFL, 0);
+            fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+        }
 #endif
         return valid;
     }
@@ -84,10 +160,16 @@ public:
         int opt = 1;
         setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
         
+#ifdef _WIN32
+        setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char*)&opt, sizeof(opt));
+#else
+        setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+#endif
+        
         return ::bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == 0;
     }
     
-    bool listen(int backlog = 5) {
+    bool listen(int backlog = 128) { // backlog
         if (!valid) return false;
         return ::listen(sock, backlog) == 0;
     }
@@ -106,22 +188,20 @@ public:
         return client;
     }
     
-    bool send(const std::string& data) {
+    bool send(std::string_view data) {
         if (!valid) return false;
-        return ::send(sock, data.c_str(), data.length(), 0) > 0;
+        size_t sent = 0;
+        while (sent < data.size()) {
+            int result = ::send(sock, data.data() + sent, data.size() - sent, 0);
+            if (result <= 0) return false;
+            sent += result;
+        }
+        return true;
     }
     
-    std::string recv(int maxSize = 2048) {
-        if (!valid) return "";
-        
-        std::vector<char> buffer(maxSize);
-        int result = ::recv(sock, buffer.data(), maxSize - 1, 0);
-        
-        if (result > 0) {
-            buffer[result] = '\0';
-            return std::string(buffer.data());
-        }
-        return "";
+    int recv(char* buffer, int maxSize) {
+        if (!valid) return -1;
+        return ::recv(sock, buffer, maxSize, 0);
     }
     
     void close() {
@@ -145,7 +225,7 @@ private:
     std::mutex logMutex;
     
 public:
-    void log(const std::string& message, const std::string& color = "") {
+    void log(std::string_view message) {
         std::lock_guard<std::mutex> lock(logMutex);
         
         auto now = std::chrono::system_clock::now();
@@ -155,9 +235,62 @@ public:
         std::cout << "[" << std::put_time(&tm, "%H:%M:%S") << "] " << message << std::endl;
     }
     
-    void info(const std::string& message) { log("INFO: " + message); }
-    void warn(const std::string& message) { log("WARN: " + message); }
-    void error(const std::string& message) { log("ERROR: " + message); }
+    void info(std::string_view message) { log(std::string("INFO: ") + std::string(message)); }
+    void warn(std::string_view message) { log(std::string("WARN: ") + std::string(message)); }
+    void error(std::string_view message) { log(std::string("ERROR: ") + std::string(message)); }
+};
+
+class FileCache {
+private:
+    struct CacheEntry {
+        std::string content;
+        fs::file_time_type lastModified;
+        size_t size;
+    };
+    
+    std::unordered_map<std::string, CacheEntry> cache;
+    std::mutex cacheMutex;
+    static constexpr size_t MAX_CACHE_SIZE = 50 * 1024 * 1024; // 50MB
+    size_t currentCacheSize = 0;
+    
+public:
+    std::string getFile(const std::string& filename) {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        
+        if (!fs::exists(filename)) {
+            return "";
+        }
+        
+        auto lastWrite = fs::last_write_time(filename);
+        
+        auto it = cache.find(filename);
+        if (it != cache.end() && it->second.lastModified == lastWrite) {
+            return it->second.content;
+        }
+        
+        std::ifstream file(filename, std::ios::binary);
+        if (!file.is_open()) {
+            return "";
+        }
+        
+        std::string content((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
+        
+        if (currentCacheSize + content.size() > MAX_CACHE_SIZE) {
+            clearCache();
+        }
+        
+        cache[filename] = {content, lastWrite, content.size()};
+        currentCacheSize += content.size();
+        
+        return content;
+    }
+    
+private:
+    void clearCache() {
+        cache.clear();
+        currentCacheSize = 0;
+    }
 };
 
 class HTTPServer {
@@ -169,23 +302,15 @@ private:
     std::atomic<bool> filesChanged{false};
     fs::file_time_type lastCheckTime;
     Logger logger;
+    FileCache fileCache;
+    MemoryPool memoryPool;
     int port;
     
-    std::map<std::string, std::string> mimeTypes = {
-        {".html", "text/html"},
-        {".css", "text/css"},
-        {".js", "application/javascript"},
-        {".json", "application/json"},
-        {".png", "image/png"},
-        {".jpg", "image/jpeg"},
-        {".jpeg", "image/jpeg"},
-        {".svg", "image/svg+xml"},
-        {".ico", "image/x-icon"}
-    };
+    static const std::unordered_map<std::string, std::string> mimeTypes;
+    static const std::vector<std::string> watchedExtensions;
     
-    std::vector<std::string> watchedExtensions = {
-        ".html", ".css", ".js", ".json"
-    };
+    static const std::string notFoundResponse;
+    static const std::string liveReloadScript;
 
 public:
     HTTPServer(int p = 3000) : port(p) {
@@ -197,42 +322,28 @@ public:
     }
     
     bool start() {
-        std::cout << "HTTPServer::start() called on port " << port << std::endl;
-        
 #ifdef _WIN32
         WSADATA wsa;
-        std::cout << "Initializing WSA..." << std::endl;
         if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
-            std::cout << "WSAStartup failed!" << std::endl;
             logger.error("WSAStartup failed");
             return false;
         }
-        std::cout << "WSA initialized successfully" << std::endl;
 #endif
         
-        std::cout << "Creating socket..." << std::endl;
         if (!serverSocket.create()) {
-            std::cout << "Failed to create socket!" << std::endl;
             logger.error("Failed to create socket");
             return false;
         }
-        std::cout << "Socket created successfully" << std::endl;
         
-        std::cout << "Binding to port " << port << "..." << std::endl;
         if (!serverSocket.bind(port)) {
-            std::cout << "Failed to bind to port " << port << "!" << std::endl;
             logger.error("Failed to bind to port " + std::to_string(port));
             return false;
         }
-        std::cout << "Bound to port " << port << " successfully" << std::endl;
         
-        std::cout << "Starting to listen..." << std::endl;
         if (!serverSocket.listen()) {
-            std::cout << "Failed to listen on socket!" << std::endl;
             logger.error("Failed to listen on socket");
             return false;
         }
-        std::cout << "Listening started successfully" << std::endl;
         
         running = true;
         
@@ -241,7 +352,7 @@ public:
                 Socket client = serverSocket.accept();
                 if (client.isValid()) {
                     std::thread([this](Socket client) {
-                        handleClient(client);
+                        handleClient(std::move(client));
                     }, std::move(client)).detach();
                 }
             }
@@ -250,7 +361,7 @@ public:
         watcherThread = std::thread([this]() {
             while (running) {
                 checkFilesModified();
-                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                std::this_thread::sleep_for(std::chrono::milliseconds(250)); // Reduced interval
             }
         });
         
@@ -290,29 +401,42 @@ public:
     }
     
 private:
-    void handleClient(Socket& client) {
-        std::string request = client.recv(4096);
-        if (request.empty()) return;
+    void handleClient(Socket client) {
+        PooledBuffer buffer(memoryPool);
+        if (!buffer.valid()) {
+            logger.warn("Memory pool exhausted");
+            return;
+        }
         
-        std::istringstream iss(request);
-        std::string method, path, version;
-        iss >> method >> path >> version;
+        int bytesRead = client.recv(buffer.get(), 4096);
+        if (bytesRead <= 0) return;
+        
+        std::string_view request(buffer.get(), bytesRead);
+        
+        auto firstSpace = request.find(' ');
+        if (firstSpace == std::string_view::npos) return;
+        
+        auto secondSpace = request.find(' ', firstSpace + 1);
+        if (secondSpace == std::string_view::npos) return;
+        
+        std::string_view method = request.substr(0, firstSpace);
+        std::string_view path = request.substr(firstSpace + 1, secondSpace - firstSpace - 1);
         
         if (path == "/reload") {
             serveReload(client);
         } else if (path == "/live-reload.js") {
             serveLiveReloadScript(client);
         } else {
-            std::string filename = (path == "/") ? "index.html" : path.substr(1);
+            std::string filename = (path == "/") ? "index.html" : std::string(path.substr(1));
             serveFile(client, filename);
         }
     }
     
     void serveFile(Socket& client, const std::string& filename) {
-        std::string content = readFile(filename);
+        std::string content = fileCache.getFile(filename);
         
         if (content.empty()) {
-            serve404(client);
+            client.send(notFoundResponse);
             return;
         }
         
@@ -321,103 +445,49 @@ private:
         }
         
         std::string mimeType = getMimeType(filename);
-        std::string response = 
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: " + mimeType + "\r\n"
-            "Content-Length: " + std::to_string(content.length()) + "\r\n"
-            "Cache-Control: no-cache\r\n"
-            "Access-Control-Allow-Origin: *\r\n\r\n" + content;
+        
+        std::string response;
+        response.reserve(content.size() + 256);
+        
+        response = "HTTP/1.1 200 OK\r\n"
+                  "Content-Type: ";
+        response += mimeType;
+        response += "\r\nContent-Length: ";
+        response += std::to_string(content.length());
+        response += "\r\nCache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n"
+                   "Pragma: no-cache\r\n"
+                   "Expires: 0\r\n"
+                   "Access-Control-Allow-Origin: *\r\n\r\n";
+        response += content;
         
         client.send(response);
         logger.info("Served: " + filename + " (" + std::to_string(content.length()) + " bytes)");
     }
     
-    void serve404(Socket& client) {
-        std::string html = R"(
-<!DOCTYPE html>
-<html>
-<head>
-    <title>404 Not Found</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
-        body { 
-            font-family: "Roboto", sans-serif;
-            text-align: center; 
-            padding: 50px; 
-            background: #faf9f5;
-        }
-        h1 { color: #000; }
-        p { color: #444; }
-    </style>
-</head>
-<body>
-    <h1>404 - File Not Found</h1>
-    <p>The requested file could not be found.</p>
-</body>
-</html>)";
-        
-        std::string response = 
-            "HTTP/1.1 404 Not Found\r\n"
-            "Content-Type: text/html\r\n"
-            "Content-Length: " + std::to_string(html.length()) + "\r\n\r\n" + html;
-        
-        client.send(response);
-    }
-    
     void serveReload(Socket& client) {
         bool shouldReload = filesChanged.exchange(false);
         
-        std::string json = "{\"reload\":" + (shouldReload ? std::string("true") : std::string("false")) + "}";
-        std::string response = 
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: application/json\r\n"
-            "Access-Control-Allow-Origin: *\r\n"
-            "Cache-Control: no-cache\r\n\r\n" + json;
+        std::string response = "HTTP/1.1 200 OK\r\n"
+                              "Content-Type: application/json\r\n"
+                              "Access-Control-Allow-Origin: *\r\n"
+                              "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n"
+                              "Pragma: no-cache\r\n"
+                              "Expires: 0\r\n\r\n{\"reload\":";
+        response += shouldReload ? "true" : "false";
+        response += "}";
         
         client.send(response);
     }
     
     void serveLiveReloadScript(Socket& client) {
-        std::string script = R"(
-(function() {
-    console.log('Live reload script loaded');
-    
-    function checkForReload() {
-        fetch('/reload')
-            .then(response => response.json())
-            .then(data => {
-                if (data.reload) {
-                    console.log('Reloading page...');
-                    location.reload();
-                }
-            })
-            .catch(error => {
-                console.error('Live reload error:', error);
-            });
-    }
-    
-    setInterval(checkForReload, 1000);
-})();
-)";
-        
-        std::string response = 
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: application/javascript\r\n"
-            "Content-Length: " + std::to_string(script.length()) + "\r\n"
-            "Cache-Control: no-cache\r\n\r\n" + script;
+        std::string response = "HTTP/1.1 200 OK\r\n"
+                              "Content-Type: application/javascript\r\n"
+                              "Content-Length: " + std::to_string(liveReloadScript.length()) + "\r\n"
+                              "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n"
+                              "Pragma: no-cache\r\n"
+                              "Expires: 0\r\n\r\n" + liveReloadScript;
         
         client.send(response);
-    }
-    
-    std::string readFile(const std::string& filename) {
-        std::ifstream file(filename);
-        if (!file.is_open()) {
-            return "";
-        }
-        
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        return buffer.str();
     }
     
     std::string getMimeType(const std::string& filename) {
@@ -432,14 +502,12 @@ private:
     }
     
     void injectLiveReloadScript(std::string& content) {
-        std::string script = "<script src=\"/live-reload.js\"></script>";
+        static const std::string script = "<script src=\"/live-reload.js\"></script>";
         
-        // Try to inject before closing body tag
         size_t bodyPos = content.find("</body>");
         if (bodyPos != std::string::npos) {
             content.insert(bodyPos, script);
         } else {
-            // If no body tag, append at the end
             content += script;
         }
     }
@@ -470,33 +538,89 @@ private:
     }
 };
 
+const std::unordered_map<std::string, std::string> HTTPServer::mimeTypes = {
+    {".html", "text/html"},
+    {".css", "text/css"},
+    {".js", "application/javascript"},
+    {".json", "application/json"},
+    {".png", "image/png"},
+    {".jpg", "image/jpeg"},
+    {".jpeg", "image/jpeg"},
+    {".svg", "image/svg+xml"},
+    {".ico", "image/x-icon"}
+};
+
+const std::vector<std::string> HTTPServer::watchedExtensions = {
+    ".html", ".css", ".js", ".json"
+};
+
+const std::string HTTPServer::notFoundResponse = 
+    "HTTP/1.1 404 Not Found\r\n"
+    "Content-Type: text/html\r\n"
+    "Content-Length: 187\r\n\r\n"
+    "<!DOCTYPE html><html><head><title>404</title></head>"
+    "<body><h1>404 - Not Found</h1><p>File not found.</p></body></html>";
+
+const std::string HTTPServer::liveReloadScript = R"(
+(function() {
+    console.log('Live reload script loaded');
+    
+    function checkForReload() {
+        fetch('/reload')
+            .then(response => response.json())
+            .then(data => {
+                if (data.reload) {
+                    console.log('Reloading page...');
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Live reload error:', error);
+            });
+    }
+    
+    setInterval(checkForReload, 1000);
+})();
+)";
+
 // Main application
 class LiveServer {
 private:
     HTTPServer server;
     Logger logger;
     std::atomic<bool> running{true};
+    std::chrono::steady_clock::time_point lastLogResetTime;
+    const std::chrono::minutes logResetInterval{5};
+    const bool AUTO_CLEAR_ENABLED{true}; 
+
+    void clearLog() {
+#ifdef _WIN32
+        system("cls");
+#else
+        system("clear");
+#endif
+        logger.info("=== LOG CLEARED ===");
+        logger.info("Server still running on: http://localhost:" + std::to_string(server.getPort()));
+        logger.info("Press Ctrl+C to stop");
+        logger.info("Linux/macOS: Send 'kill -USR1 <PID>' for manual clear");
+        logger.info("==================");
+    }
 
 public:
     LiveServer(int port = 3000) : server(port) {}
     
     bool start() {
-        std::cout << "LiveServer::start() called" << std::endl;
         logger.info("Starting Live Server...");
         
-        std::cout << "Calling server.start()..." << std::endl;
         if (!server.start()) {
-            std::cout << "server.start() failed!" << std::endl;
             logger.error("Failed to start server");
             return false;
         }
         
-        std::cout << "server.start() succeeded!" << std::endl;
         logger.info("Server ready!");
         logger.info("Local: http://localhost:" + std::to_string(server.getPort()));
         logger.info("Press Ctrl+C to stop");
         
-        std::cout << "Opening browser..." << std::endl;
         server.openBrowser();
         
         return true;
@@ -518,10 +642,34 @@ public:
         });
 #endif
         
-        std::cout << "Server is running. Press Ctrl+C to stop." << std::endl;
+        logger.info("=== LOG CLEAR OPTIONS ===");
+        logger.info("Auto clear: Every 5 minutes");
+        logger.info("Manual clear: Send SIGUSR1 signal (Linux/macOS) or modify code");
+        logger.info("Disable auto clear: Set AUTO_CLEAR_ENABLED = false");
+        logger.info("========================");
         
+#ifndef _WIN32
+        static auto clearLogHandler = [](int signal, LiveServer* server) {
+            if (server) {
+                server->clearLog();
+                server->logger.info("Manual log clear triggered");
+            }
+        };
+
+        if (signal(SIGUSR1, [](int sig){ clearLogHandler(sig, nullptr); }) == SIG_ERR) {
+            logger.error("Failed to register SIGUSR1 handler");
+        }
+#endif
+
         while (running) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+
+            // Auto clear if in use
+            if (this->AUTO_CLEAR_ENABLED && 
+                std::chrono::duration_cast<std::chrono::minutes>(std::chrono::steady_clock::now() - lastLogResetTime) >= logResetInterval) {
+                clearLog();
+                lastLogResetTime = std::chrono::steady_clock::now();
+            }
         }
     }
     
@@ -532,62 +680,45 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-    std::cout.flush();
-    std::cerr.flush();
-    
-    std::cout << "LiveServer starting..." << std::endl;
-    std::cout.flush();
-    
     int port = 3000;
     
     if (argc > 1) {
         port = std::atoi(argv[1]);
         if (port <= 0 || port > 65535) {
             std::cerr << "Invalid port number. Using default port 3000." << std::endl;
-            std::cerr.flush();
             port = 3000;
         }
     }
     
-    std::cout << "Using port: " << port << std::endl;
-    std::cout.flush();
-    
     try {
-        std::cout << "Creating LiveServer instance" << std::endl;
-        std::cout.flush();
-        
         LiveServer app(port);
-        
-        std::cout << "Starting server" << std::endl;
-        std::cout.flush();
         
         if (!app.start()) {
             std::cerr << "Failed to start server" << std::endl;
-            std::cerr.flush();
             return 1;
         }
         
-        std::cout << "Server started successfully" << std::endl;
-        std::cout.flush();
         app.run();
     } catch (const std::exception& e) {
         std::cerr << "Exception: " << e.what() << std::endl;
-        std::cerr.flush();
-        return 1;
-    } catch (...) {
-        std::cerr << "Unknown exception occurred" << std::endl;
-        std::cerr.flush();
         return 1;
     }
     
     return 0;
 }
 
-/*
+/*    
     WINDOWS (MinGW):
-    gcc -x c++ -std=c++20 -static -O2 LiveServer.cpp -o LiveServer.exe -lstdc++ -lws2_32
+    g++ -x c++ -std=c++20 -static -O3 -DNDEBUG -flto -march=native LiveServer.cpp -o LiveServer.exe -lstdc++ -lws2_32
+    
     LINUX:
-    g++ -std=c++20 -O2 LiveServer.cpp -o LiveServer -lpthread
+    g++ -std=c++20 -O3 -DNDEBUG -flto -march=native LiveServer.cpp -o LiveServer -lpthread
+    
     macOS:
-    g++ -std=c++20 -O2 LiveServer.cpp -o LiveServer
+    g++ -std=c++20 -O3 -DNDEBUG -flto -march=native LiveServer.cpp -o LiveServer
+    
+    - O3
+    - DNDEBUG
+    - flto Link-time
+    - march=native CPU
 */
