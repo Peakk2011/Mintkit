@@ -6,13 +6,13 @@
 export const pipe = function () {
     const a = arguments;
     const len = a.length;
-    
+
     for (let i = 0; i < len; i++) {
         if (typeof a[i] !== 'function') {
             throw new TypeError(`pipe: Argument at index ${i} is not a function`);
         }
     }
-    
+
     return function (x) {
         let result = x;
         for (let i = 0; i < len; i++) {
@@ -30,13 +30,13 @@ export const pipe = function () {
 export const compose = function () {
     const a = arguments;
     const len = a.length;
-    
+
     for (let i = 0; i < len; i++) {
         if (typeof a[i] !== 'function') {
             throw new TypeError(`compose: Argument at index ${i} is not a function`);
         }
     }
-    
+
     return function (x) {
         let result = x;
         for (let i = len - 1; i >= 0; i--) {
@@ -56,14 +56,14 @@ function createElement(tag, props, ...children) {
     if (!tag || typeof tag !== 'string') {
         throw new Error('createElement: tag must be a non-empty string');
     }
-    
-    const flatChildren = children.flat(Infinity).filter(child => 
+
+    const flatChildren = children.flat(Infinity).filter(child =>
         child !== null && child !== undefined && child !== false
     );
-    
-    return { 
-        tag, 
-        props: props || {}, 
+
+    return {
+        tag,
+        props: props || {},
         children: flatChildren,
         key: props?.key || null // Support for keys
     };
@@ -71,12 +71,12 @@ function createElement(tag, props, ...children) {
 
 function isSameNodeType(a, b) {
     if (!a || !b) return false;
-    
+
     // Handle text nodes
     if (typeof a === 'string' || typeof a === 'number') {
         return typeof b === 'string' || typeof b === 'number';
     }
-    
+
     return a.tag === b.tag && a.key === b.key;
 }
 
@@ -85,7 +85,7 @@ function updateProps($el, oldProps, newProps) {
         console.warn('updateProps: Invalid DOM element');
         return;
     }
-    
+
     oldProps = oldProps || {};
     newProps = newProps || {};
 
@@ -109,7 +109,7 @@ function updateProps($el, oldProps, newProps) {
     Object.keys(newProps).forEach(key => {
         const oldValue = oldProps[key];
         const newValue = newProps[key];
-        
+
         if (oldValue !== newValue && key !== 'key') {
             if (key.startsWith('on') && typeof newValue === 'function') {
                 const eventName = key.slice(2).toLowerCase();
@@ -140,11 +140,11 @@ function createDomNode(vNode) {
     if (vNode === null || vNode === undefined || vNode === false) {
         return document.createTextNode('');
     }
-    
+
     if (typeof vNode === 'string' || typeof vNode === 'number') {
         return document.createTextNode(String(vNode));
     }
-    
+
     if (Array.isArray(vNode)) {
         const fragment = document.createDocumentFragment();
         vNode.forEach(child => {
@@ -152,16 +152,16 @@ function createDomNode(vNode) {
         });
         return fragment;
     }
-    
+
     if (!vNode.tag) {
         console.warn('createDomNode: Invalid vNode', vNode);
         return document.createTextNode('');
     }
-    
+
     try {
         const $el = document.createElement(vNode.tag);
         updateProps($el, {}, vNode.props);
-        
+
         if (vNode.children && vNode.children.length > 0) {
             vNode.children.forEach(child => {
                 const childNode = createDomNode(child);
@@ -170,7 +170,7 @@ function createDomNode(vNode) {
                 }
             });
         }
-        
+
         return $el;
     } catch (error) {
         console.error('createDomNode: Error creating element:', error);
@@ -183,7 +183,7 @@ function diff($parent, newVNode, oldVNode, index = 0) {
         console.warn('diff: Invalid parent element');
         return;
     }
-    
+
     try {
         if (!oldVNode) {
             const newNode = createDomNode(newVNode);
@@ -208,14 +208,14 @@ function diff($parent, newVNode, oldVNode, index = 0) {
             const currentNode = $parent.childNodes[index];
             if (currentNode) {
                 updateProps(currentNode, oldVNode.props, newVNode.props);
-                
+
                 const newLen = newVNode.children ? newVNode.children.length : 0;
                 const oldLen = oldVNode.children ? oldVNode.children.length : 0;
                 const maxLen = Math.max(newLen, oldLen);
-                
+
                 for (let i = 0; i < maxLen; i++) {
                     diff(
-                        currentNode, 
+                        currentNode,
                         newVNode.children ? newVNode.children[i] : null,
                         oldVNode.children ? oldVNode.children[i] : null,
                         i
@@ -235,12 +235,12 @@ export function createState(v) {
     let root = null;
     let isUpdating = false;
     let updateQueue = [];
-    
+
     const flushUpdates = () => {
         if (isUpdating) return;
-        
+
         isUpdating = true;
-        
+
         try {
             const currentState = s;
             for (let i = 0, l = c.length; i < l; i++) {
@@ -252,7 +252,7 @@ export function createState(v) {
                     }
                 }
             }
-            
+
             if (root && oldVNode !== null && s && typeof s === 'object' && s.vdom) {
                 try {
                     diff(root, s.vdom, oldVNode);
@@ -263,7 +263,7 @@ export function createState(v) {
             }
         } finally {
             isUpdating = false;
-            
+
             if (updateQueue.length > 0) {
                 const nextUpdate = updateQueue.shift();
                 if (nextUpdate) {
@@ -278,26 +278,26 @@ export function createState(v) {
         get: function () {
             return s;
         },
-        
+
         set: function (n) {
             const newState = typeof n === "function" ? n(s) : n;
-            
+
             if (newState === s) return;
-            
+
             if (isUpdating) {
                 updateQueue.push(newState);
                 return;
             }
-            
+
             s = newState;
-            
+
             setTimeout(flushUpdates, 0);
         },
-        
+
         subscribe: function (f, mountPoint) {
             if (typeof f === "function") {
                 c.push(f);
-                
+
                 return () => {
                     const index = c.indexOf(f);
                     if (index > -1) {
@@ -305,7 +305,7 @@ export function createState(v) {
                     }
                 };
             }
-            
+
             if (mountPoint && mountPoint instanceof HTMLElement) {
                 root = mountPoint;
                 if (s && typeof s === 'object' && s.vdom) {
@@ -322,9 +322,9 @@ export function createState(v) {
                 }
             }
         },
-        
+
         createElement: createElement,
-        
+
         getSubscriberCount: () => c.length,
         hasSubscribers: () => c.length > 0,
         clear: () => {
@@ -336,67 +336,125 @@ export function createState(v) {
     };
 }
 
+function fnv1a(str) {
+    let hash = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+        hash ^= str.charCodeAt(i);
+        hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return ("0000000" + (hash >>> 0).toString(16)).substr(-8);
+}
+
+const cssCache = new WeakMap(); 
+const hashCache = new Map();    // hash -> styleEl
+
 export function injectCSS(cssString) {
     if (!cssString || typeof cssString !== 'string') {
         console.warn('injectCSS: Invalid CSS string provided');
         return null;
     }
-    
-    try {
-        const cssHash = btoa(cssString).slice(0, 10);
-        const existingStyle = document.querySelector(`style[data-css-hash="${cssHash}"]`);
-        
-        if (existingStyle) {
-            console.debug('injectCSS: CSS already injected, skipping');
-            return existingStyle;
-        }
-        
-        const styleEl = document.createElement('style');
-        styleEl.textContent = cssString;
-        styleEl.setAttribute('data-css-hash', cssHash);
-        styleEl.setAttribute('data-injected-at', new Date().toISOString());
-        
-        document.head.appendChild(styleEl);
-        return styleEl;
-    } catch (error) {
-        console.error('injectCSS: Error injecting CSS:', error);
-        return null;
+
+    if (/expression\s*\(|url\s*\(\s*['"]?javascript:/i.test(cssString)) {
+        throw new Error('injectCSS: Potentially unsafe CSS detected');
     }
+
+    // Sync hash
+    const hash = fnv1a(cssString);
+    
+    if (hashCache.has(hash)) {
+        return hashCache.get(hash);
+    }
+
+    // Inject
+    const styleEl = document.createElement('style');
+    styleEl.textContent = cssString;
+    styleEl.setAttribute('data-css-hash', hash);
+    document.head.appendChild(styleEl);
+
+    styleEl.removeCSS = () => {
+        if (styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
+        cssCache.delete(styleEl);
+        hashCache.delete(hash);
+    };
+
+    cssCache.set(styleEl, hash);
+    hashCache.set(hash, styleEl);
+
+    return styleEl;
 }
 
-export function injectHTML(targetSelector, htmlString) {
-    if (!targetSelector || typeof targetSelector !== 'string') {
+export function injectHTML(targetSelector, htmlContent) {
+    if (!targetSelector || typeof targetSelector !== 'string' || targetSelector.trim() === '') {
         throw new Error('injectHTML: targetSelector must be a non-empty string');
     }
-    
-    if (htmlString === null || htmlString === undefined) {
-        htmlString = '';
+
+    if (htmlContent === null || htmlContent === undefined) {
+        htmlContent = '';
     }
-    
+
     try {
         const target = document.querySelector(targetSelector);
         if (!target) {
             throw new Error(`injectHTML: No element matches selector: ${targetSelector}`);
         }
-        
-        if (typeof htmlString === 'string' && htmlString.includes('<script')) {
-            console.warn('injectHTML: Script tags detected in HTML string');
+
+        target.innerHTML = '';
+
+        // if DocumentFragment, Node, NodeList, HTMLCollection 
+        if (htmlContent instanceof DocumentFragment) {
+            target.appendChild(htmlContent.cloneNode(true));
+            return target;
+        }
+        if (htmlContent instanceof Node) {
+            target.appendChild(htmlContent.cloneNode(true));
+            return target;
+        }
+        if (htmlContent instanceof NodeList || htmlContent instanceof HTMLCollection) {
+            Array.from(htmlContent).forEach(node => {
+                if (node instanceof Node) {
+                    target.appendChild(node.cloneNode(true));
+                }
+            });
+            return target;
+        }
+
+        if (typeof htmlContent === 'string') {
+            if (htmlContent.includes('<script')) {
+                console.warn('injectHTML: Script tags detected in HTML string');
+            }
+            const temp = document.createElement('template');
+            temp.innerHTML = htmlContent;
+            target.appendChild(temp.content.cloneNode(true));
+            return target;
         }
         
-        target.innerHTML = String(htmlString);
-        return target;
+        throw new Error('injectHTML: htmlContent must be a string');
     } catch (error) {
         console.error('injectHTML: Error injecting HTML:', error);
         throw error;
     }
 }
 
+/* usage:
+    const frag = document.createDocumentFragment();
+    const elemt = document.createElement('div');
+    elemt.textContent = 'Hi!';
+    frag.appendChild(elemt);
+    injectHTML('#app', frag);
+
+    const node = document.createElement('span');
+    node.textContent = 'Content';
+    injectHTML('#app', node);
+
+    injectHTML(targetSelector, htmlContent, options)
+*/
+
 export function injectTitle(titleHtmlString) {
     if (!titleHtmlString || typeof titleHtmlString !== 'string') {
         console.warn('injectTitle: Invalid title string provided');
         return;
     }
-    
+
     try {
         let head = document.head;
         if (!head) {
@@ -415,13 +473,13 @@ export function injectTitle(titleHtmlString) {
         }
 
         head.insertAdjacentHTML('beforeend', cleanTitle);
-        
+
         // Log title change for debugging
         const titleElement = head.querySelector('title');
         if (titleElement) {
             console.debug('injectTitle: Title updated to:', titleElement.textContent);
         }
-        
+
     } catch (error) {
         console.error('injectTitle: Error injecting title:', error);
     }
@@ -508,15 +566,15 @@ export const AdjustHook = (options = {}) => {
         endpoint: options.endpoint || "/reload",
         onReload: options.onReload || (() => location.reload()),
         onError: options.onError || ((error) => console.warn('AdjustHook: Reload check failed:', error)),
-        enabled: options.enabled !== false, 
+        enabled: options.enabled !== false,
         performanceMonitoring: options.performanceMonitoring !== false // Default to enabled
     };
-    
+
     if (!config.enabled) {
         console.debug('AdjustHook: Hot reload disabled');
         return;
     }
-    
+
     let intervalId = null;
     let isChecking = false;
     let stats = {
@@ -526,13 +584,13 @@ export const AdjustHook = (options = {}) => {
         avgTime: 0,
         lastCheckTime: 0
     };
-    
+
     const checkReload = async () => {
         if (isChecking) return;
-        
+
         isChecking = true;
         const startTime = performance.now();
-        
+
         try {
             stats.requests++;
             const response = await fetch(config.endpoint, {
@@ -542,11 +600,11 @@ export const AdjustHook = (options = {}) => {
                     'Accept': 'application/json'
                 }
             });
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-            
+
             const data = await response.json();
             if (data && data.reload) {
                 const responseTime = performance.now() - startTime;
@@ -561,25 +619,25 @@ export const AdjustHook = (options = {}) => {
             }
         } finally {
             isChecking = false;
-            
+
             // Update performance stats
             const endTime = performance.now();
             const requestTime = endTime - startTime;
             stats.totalTime += requestTime;
             stats.avgTime = stats.totalTime / stats.requests;
             stats.lastCheckTime = requestTime;
-            
+
             // Log performance stats every 10 requests if monitoring is enabled
             if (config.performanceMonitoring && stats.requests % 10 === 0) {
                 console.log(`AdjustHook Stats: ${stats.requests} requests, ${stats.errors} errors, Avg: ${stats.avgTime.toFixed(2)}ms, Last: ${requestTime.toFixed(2)}ms`);
             }
         }
     };
-    
+
     // Start checking
     intervalId = setInterval(checkReload, config.interval);
     console.debug(`AdjustHook: Started reload checking every ${config.interval}ms with performance monitoring`);
-    
+
     // Return cleanup function with stats
     return {
         stop: () => {
@@ -623,12 +681,12 @@ export const MintUtils = {
 // Performance monitoring utility
 export const PerformanceMonitor = {
     timers: new Map(),
-    
+
     start(label) {
         this.timers.set(label, performance.now());
         return this;
     },
-    
+
     end(label) {
         const startTime = this.timers.get(label);
         if (startTime) {
@@ -639,21 +697,21 @@ export const PerformanceMonitor = {
         }
         return 0;
     },
-    
+
     measure(label, fn) {
         this.start(label);
         const result = fn();
         this.end(label);
         return result;
     },
-    
+
     async measureAsync(label, fn) {
         this.start(label);
         const result = await fn();
         this.end(label);
         return result;
     },
-    
+
     getStats() {
         const stats = {};
         for (const [label, startTime] of this.timers) {
@@ -661,7 +719,7 @@ export const PerformanceMonitor = {
         }
         return stats;
     },
-    
+
     clear() {
         this.timers.clear();
     }
@@ -671,7 +729,7 @@ export const PerformanceMonitor = {
 export const ReloadPerformanceTracker = {
     history: [],
     maxHistory: 100,
-    
+
     recordReload(duration, fileCount = 0, memoryUsage = 0) {
         const entry = {
             timestamp: Date.now(),
@@ -680,26 +738,26 @@ export const ReloadPerformanceTracker = {
             memoryUsage,
             date: new Date().toISOString()
         };
-        
+
         this.history.push(entry);
-        
+
         // Keep only the last maxHistory entries
         if (this.history.length > this.maxHistory) {
             this.history.shift();
         }
-        
+
         console.log(`Reload recorded: ${duration.toFixed(2)}ms, Files: ${fileCount}, Memory: ${memoryUsage} bytes`);
         return entry;
     },
-    
+
     getStats() {
         if (this.history.length === 0) return null;
-        
+
         const durations = this.history.map(h => h.duration);
         const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
         const min = Math.min(...durations);
         const max = Math.max(...durations);
-        
+
         return {
             totalReloads: this.history.length,
             averageTime: avg,
@@ -708,7 +766,7 @@ export const ReloadPerformanceTracker = {
             lastReload: this.history[this.history.length - 1]
         };
     },
-    
+
     logStats() {
         const stats = this.getStats();
         if (stats) {
@@ -720,7 +778,7 @@ export const ReloadPerformanceTracker = {
             console.log(`   Last reload: ${stats.lastReload.duration.toFixed(2)}ms`);
         }
     },
-    
+
     clear() {
         this.history = [];
     }

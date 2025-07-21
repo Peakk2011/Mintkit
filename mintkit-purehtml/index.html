@@ -12,35 +12,36 @@
     Architecture Pattern:
     Content Object → Template → Dynamic CSS → Injection → DOM
 
+    Old Import path: "https://cdn.jsdelivr.net/gh/Peakk2011/Mintkit_CDN/mint.min.js";
+
 -->
-    
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Mintkit pure HTML</title>
+    <link rel="dns-prefetch" href="//mint-teams.web.app" />
+    <link rel="preconnect" href="https://mint-teams.web.app" crossorigin />
+    <link rel="modulepreload" href="https://mint-teams.web.app/Mintkit/mint.js" />
 </head>
+
 <body>
     <div id="app"></div>
 
     <script type="module">
-        import { Mint } from "https://cdn.jsdelivr.net/gh/Peakk2011/Mintkit_CDN/mint.min.js";
+        import { Mint } from "https://mint-teams.web.app/Mintkit/mint.js";
 
-        const app = async () => {
-            const root = {
-                html: `
-                    
-                `
-            }
+        const app = `
+            <h1>
+                Hello, Mintkit!
+            </h1>
+        `;
 
-            queueMicrotask(() => {
-                Mint.injectHTML("#app",root.html);
-            })
-        }
-
-        app();
+        queueMicrotask(() => Mint.injectHTML("#app", app));
     </script>
-
 </body>
+
 </html>
