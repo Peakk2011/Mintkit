@@ -51,6 +51,63 @@ export const compose = function () {
     };
 };
 
+/**
+ * Modern `structuredClone` API
+ * @param {any} obj 
+ * @returns {any} 
+ */
+const clone = (() => {
+    if (typeof globalThis.structuredClone === 'function') {
+        return (obj) => {
+            try {
+                return globalThis.structuredClone(obj);
+            } catch (e) {
+                console.warn("structuredClone failed, falling back to custom clone.", e);
+                return deepCloneRecursive(obj);
+            }
+        };
+    }
+
+    const deepCloneRecursive = (obj, hash = new WeakMap()) => {
+        if (Object(obj) !== obj || obj instanceof Function) {
+            return obj;
+        }
+        if (hash.has(obj)) {
+            return hash.get(obj);
+        }
+
+        try {
+            if (obj instanceof Date) return new Date(obj);
+            if (obj instanceof RegExp) return new RegExp(obj.source, obj.flags);
+            if (obj instanceof Map) {
+                const mapClone = new Map();
+                hash.set(obj, mapClone);
+                obj.forEach((value, key) => mapClone.set(deepCloneRecursive(key, hash), deepCloneRecursive(value, hash)));
+                return mapClone;
+            }
+            if (obj instanceof Set) {
+                const setClone = new Set();
+                hash.set(obj, setClone);
+                obj.forEach(value => setClone.add(deepCloneRecursive(value, hash)));
+                return setClone;
+            }
+        } catch (e) {
+            console.error("Could not clone a specific object type, returning as is.", e);
+            return obj;
+        }
+
+        const result = Array.isArray(obj) ? [] : Object.create(Object.getPrototypeOf(obj));
+        hash.set(obj, result);
+        for (const key of Reflect.ownKeys(obj)) {
+            result[key] = deepCloneRecursive(obj[key], hash);
+        }
+        return result;
+    };
+
+    console.warn("Mintkit: `structuredClone` is not available. Using a custom fallback.");
+    return deepCloneRecursive;
+})();
+
 function createElement(tag, props, ...children) {
     // Input validation
     if (!tag || typeof tag !== 'string') {
@@ -256,7 +313,7 @@ export function createState(v) {
             if (root && oldVNode !== null && s && typeof s === 'object' && s.vdom) {
                 try {
                     diff(root, s.vdom, oldVNode);
-                    oldVNode = structuredClone ? structuredClone(s.vdom) : JSON.parse(JSON.stringify(s.vdom));
+                    oldVNode = clone(s.vdom);
                 } catch (error) {
                     console.error('createState: Error during DOM diffing:', error);
                 }
@@ -310,7 +367,7 @@ export function createState(v) {
                 root = mountPoint;
                 if (s && typeof s === 'object' && s.vdom) {
                     try {
-                        oldVNode = structuredClone ? structuredClone(s.vdom) : JSON.parse(JSON.stringify(s.vdom));
+                        oldVNode = clone(s.vdom);
                         root.innerHTML = '';
                         const domNode = createDomNode(s.vdom);
                         if (domNode) {
@@ -336,6 +393,59 @@ export function createState(v) {
     };
 }
 
+function isUnsafeCSS(cssString) {
+    const dangerousPatterns = [
+        /expression\s*\(/i,
+        /url\s*\(\s*['"]?javascript:/i,
+        /@import\s+['"]?javascript:/i,
+        /-moz-binding\s*:/i,
+        /vbscript\s*:/i,
+        /data\s*:\s*text\/html/i,
+    ];
+
+    const matchedPattern = dangerousPatterns.find(pattern => pattern.test(cssString));
+
+    if (matchedPattern) {
+        console.warn('isUnsafeCSS: The following pattern triggered the security check:', matchedPattern.toString());
+        const match = cssString.match(matchedPattern);
+        if (match) console.warn('isUnsafeCSS: The matched text was:', `"${match[0]}"`);
+        return true;
+    }
+
+    return false;
+}
+
+// HTML Sanitization
+function sanitizeHTML(html) {
+    // Basic sanitization use DOMPurify or similar
+    const dangerous = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
+    const onEvents = /\son\w+\s*=\s*["'][^"']*["']/gi;
+    const javascript = /javascript\s*:/gi;
+
+    return html
+        .replace(dangerous, '')
+        .replace(onEvents, '')
+        .replace(javascript, '');
+}
+
+// Helper fn
+function insertContent(target, content, mode) {
+    switch (mode) {
+        case 'append':
+            target.appendChild(content);
+            break;
+        case 'prepend':
+            target.insertBefore(content, target.firstChild);
+            break;
+        case 'replace':
+        default:
+            target.textContent = '';
+            target.appendChild(content);
+            break;
+    }
+}
+
+// FNV-1a hash
 function fnv1a(str) {
     let hash = 2166136261;
     for (let i = 0; i < str.length; i++) {
@@ -345,47 +455,97 @@ function fnv1a(str) {
     return ("0000000" + (hash >>> 0).toString(16)).substr(-8);
 }
 
-const cssCache = new WeakMap(); 
-const hashCache = new Map();    // hash -> styleEl
+// Cache management
+const cssCache = new WeakMap();
+const hashCache = new Map();
 
-export function injectCSS(cssString) {
+export function injectCSS(cssString, options = {}) {
+    const {
+        nonce = null,
+        media = null,
+        priority = 'normal', // 'high', 'normal', 'low'
+        validate = true,
+        onError = console.error
+    } = options;
+
     if (!cssString || typeof cssString !== 'string') {
-        console.warn('injectCSS: Invalid CSS string provided');
+        const error = new Error('injectCSS: Invalid CSS string provided');
+        onError(error);
         return null;
     }
 
-    if (/expression\s*\(|url\s*\(\s*['"]?javascript:/i.test(cssString)) {
-        throw new Error('injectCSS: Potentially unsafe CSS detected');
+    if (validate && isUnsafeCSS(cssString)) {
+        const error = new Error('injectCSS: Potentially unsafe CSS detected');
+        onError(error);
+        throw error;
     }
 
-    // Sync hash
-    const hash = fnv1a(cssString);
-    
+    const hash = fnv1a(cssString + (nonce || '') + (media || ''));
+
     if (hashCache.has(hash)) {
         return hashCache.get(hash);
     }
 
-    // Inject
-    const styleEl = document.createElement('style');
-    styleEl.textContent = cssString;
-    styleEl.setAttribute('data-css-hash', hash);
-    document.head.appendChild(styleEl);
+    try {
+        const styleEl = document.createElement('style');
+        styleEl.textContent = cssString;
+        styleEl.setAttribute('data-css-hash', hash);
+        styleEl.setAttribute('data-injected', 'true');
 
-    styleEl.removeCSS = () => {
-        if (styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
-        cssCache.delete(styleEl);
-        hashCache.delete(hash);
-    };
+        if (nonce) {
+            styleEl.setAttribute('nonce', nonce);
+        }
 
-    cssCache.set(styleEl, hash);
-    hashCache.set(hash, styleEl);
+        if (media) {
+            styleEl.setAttribute('media', media);
+        }
 
-    return styleEl;
+        const insertPosition = priority === 'high' ? 'afterbegin' : 'beforeend';
+
+        requestAnimationFrame(() => {
+            document.head.insertAdjacentElement(insertPosition, styleEl);
+        });
+
+        styleEl.removeCSS = () => {
+            try {
+                if (styleEl.parentNode) {
+                    styleEl.parentNode.removeChild(styleEl);
+                }
+                cssCache.delete(styleEl);
+                hashCache.delete(hash);
+
+                styleEl.textContent = '';
+                styleEl.removeCSS = null;
+            } catch (cleanupError) {
+                onError(cleanupError);
+            }
+        };
+
+        // Store
+        cssCache.set(styleEl, hash);
+        hashCache.set(hash, styleEl);
+
+        return styleEl;
+
+    } catch (error) {
+        onError(new Error(`injectCSS: Failed to inject CSS - ${error.message}`));
+        return null;
+    }
 }
 
-export function injectHTML(targetSelector, htmlContent) {
+export function injectHTML(targetSelector, htmlContent, options = {}) {
+    const {
+        sanitize = true,
+        allowScripts = false,
+        mode = 'replace', // 'replace', 'append', 'prepend'
+        onError = console.error,
+        validate = true
+    } = options;
+
     if (!targetSelector || typeof targetSelector !== 'string' || targetSelector.trim() === '') {
-        throw new Error('injectHTML: targetSelector must be a non-empty string');
+        const error = new Error('injectHTML: targetSelector must be a non-empty string');
+        onError(error);
+        throw error;
     }
 
     if (htmlContent === null || htmlContent === undefined) {
@@ -398,56 +558,76 @@ export function injectHTML(targetSelector, htmlContent) {
             throw new Error(`injectHTML: No element matches selector: ${targetSelector}`);
         }
 
-        target.innerHTML = '';
-
-        // if DocumentFragment, Node, NodeList, HTMLCollection 
-        if (htmlContent instanceof DocumentFragment) {
-            target.appendChild(htmlContent.cloneNode(true));
-            return target;
-        }
-        if (htmlContent instanceof Node) {
-            target.appendChild(htmlContent.cloneNode(true));
-            return target;
-        }
-        if (htmlContent instanceof NodeList || htmlContent instanceof HTMLCollection) {
-            Array.from(htmlContent).forEach(node => {
-                if (node instanceof Node) {
-                    target.appendChild(node.cloneNode(true));
-                }
-            });
+        if (htmlContent instanceof DocumentFragment || htmlContent instanceof Node || htmlContent instanceof NodeList || htmlContent instanceof HTMLCollection) {
+            const fragment = document.createDocumentFragment();
+            if (htmlContent instanceof NodeList || htmlContent instanceof HTMLCollection) {
+                Array.from(htmlContent).forEach(node => fragment.appendChild(node.cloneNode(true)));
+            } else {
+                fragment.appendChild(htmlContent.cloneNode(true));
+            }
+            insertContent(target, fragment, mode);
             return target;
         }
 
         if (typeof htmlContent === 'string') {
-            if (htmlContent.includes('<script')) {
-                console.warn('injectHTML: Script tags detected in HTML string');
+            let processedHTML = htmlContent;
+
+            if (sanitize) {
+                processedHTML = sanitizeHTML(processedHTML);
             }
-            const temp = document.createElement('template');
-            temp.innerHTML = htmlContent;
-            target.appendChild(temp.content.cloneNode(true));
+
+            if (!allowScripts && processedHTML.includes('<script')) {
+                if (validate) {
+                    throw new Error('injectHTML: Script tags detected and not allowed');
+                } else {
+                    console.warn('injectHTML: Script tags detected and removed');
+                    processedHTML = processedHTML.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+                }
+            }
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(`<div>${processedHTML}</div>`, 'text/html');
+
+            const parseError = doc.querySelector('parsererror');
+            if (parseError) {
+                throw new Error(`injectHTML: HTML parsing failed - ${parseError.textContent}`);
+            }
+
+            const fragment = document.createDocumentFragment();
+            const wrapper = doc.body.firstChild;
+
+            while (wrapper.firstChild) {
+                fragment.appendChild(wrapper.firstChild);
+            }
+
+            insertContent(target, fragment, mode);
             return target;
         }
-        
-        throw new Error('injectHTML: htmlContent must be a string');
+
+        throw new Error('injectHTML: htmlContent must be a string, Node, or DocumentFragment');
+
     } catch (error) {
-        console.error('injectHTML: Error injecting HTML:', error);
-        throw error;
+        const enhancedError = new Error(`injectHTML: ${error.message}`);
+        onError(enhancedError);
+        throw enhancedError;
     }
 }
 
-/* usage:
-    const frag = document.createDocumentFragment();
-    const elemt = document.createElement('div');
-    elemt.textContent = 'Hi!';
-    frag.appendChild(elemt);
-    injectHTML('#app', frag);
+export function clearInjectionCache() {
+    hashCache.clear();
+}
 
-    const node = document.createElement('span');
-    node.textContent = 'Content';
-    injectHTML('#app', node);
-
-    injectHTML(targetSelector, htmlContent, options)
-*/
+// Performance monitoring
+export function getInjectionStats() {
+    return {
+        hashCacheSize: hashCache.size,
+        memoryUsage: performance.memory ? {
+            used: performance.memory.usedJSHeapSize,
+            total: performance.memory.totalJSHeapSize,
+            limit: performance.memory.jsHeapSizeLimit
+        } : 'not available'
+    };
+}
 
 export function injectTitle(titleHtmlString) {
     if (!titleHtmlString || typeof titleHtmlString !== 'string') {
@@ -474,7 +654,6 @@ export function injectTitle(titleHtmlString) {
 
         head.insertAdjacentHTML('beforeend', cleanTitle);
 
-        // Log title change for debugging
         const titleElement = head.querySelector('title');
         if (titleElement) {
             console.debug('injectTitle: Title updated to:', titleElement.textContent);
@@ -566,92 +745,357 @@ export const AdjustHook = (options = {}) => {
         endpoint: options.endpoint || "/reload",
         onReload: options.onReload || (() => location.reload()),
         onError: options.onError || ((error) => console.warn('AdjustHook: Reload check failed:', error)),
+        onMetricsUpdate: options.onMetricsUpdate || null,
         enabled: options.enabled !== false,
-        performanceMonitoring: options.performanceMonitoring !== false // Default to enabled
+        performanceMonitoring: options.performanceMonitoring || false,
+        detailedLogging: options.detailedLogging || false,
+        maxRetries: options.maxRetries || 3,
+        retryDelay: options.retryDelay || 2000,
+        healthCheckInterval: options.healthCheckInterval || 30000, // 30 seconds
+        metricsReportInterval: options.metricsReportInterval || 10 // Report every N requests
     };
 
     if (!config.enabled) {
         console.debug('AdjustHook: Hot reload disabled');
-        return;
+        return { stop: () => {}, getStats: () => ({}), getMetrics: () => ({}) };
     }
 
     let intervalId = null;
+    let healthCheckId = null;
     let isChecking = false;
-    let stats = {
-        requests: 0,
-        errors: 0,
-        totalTime: 0,
-        avgTime: 0,
-        lastCheckTime: 0
+    let retryCount = 0;
+    let startTime = Date.now();
+    
+    const metrics = {
+        // Request metrics
+        requests: {
+            total: 0,
+            successful: 0,
+            failed: 0,
+            retries: 0
+        },
+        
+        // Performance metrics
+        performance: {
+            totalTime: 0,
+            avgResponseTime: 0,
+            minResponseTime: Infinity,
+            maxResponseTime: 0,
+            lastResponseTime: 0,
+            responseTimeHistory: [] // Keep last 50 responses
+        },
+        
+        // Error metrics
+        errors: {
+            total: 0,
+            consecutive: 0,
+            maxConsecutive: 0,
+            types: {},
+            lastError: null,
+            lastErrorTime: null
+        },
+        
+        // Health metrics
+        health: {
+            uptime: 0,
+            isHealthy: true,
+            lastSuccessTime: Date.now(),
+            lastFailureTime: null,
+            successRate: 100
+        },
+        
+        server: {
+            memoryUsage: 0,
+            cpuUsage: 0,
+            uptime: 0,
+            version: null,
+            lastUpdate: null
+        }
     };
 
-    const checkReload = async () => {
-        if (isChecking) return;
+    const updatePerformanceMetrics = (responseTime) => {
+        const perf = metrics.performance;
+        
+        perf.totalTime += responseTime;
+        perf.lastResponseTime = responseTime;
+        perf.minResponseTime = Math.min(perf.minResponseTime, responseTime);
+        perf.maxResponseTime = Math.max(perf.maxResponseTime, responseTime);
+        perf.avgResponseTime = perf.totalTime / metrics.requests.total;
+        
+        perf.responseTimeHistory.push(responseTime);
+        if (perf.responseTimeHistory.length > 50) {
+            perf.responseTimeHistory.shift();
+        }
+    };
 
-        isChecking = true;
-        const startTime = performance.now();
+    const updateErrorMetrics = (error) => {
+        metrics.errors.total++;
+        metrics.errors.consecutive++;
+        metrics.errors.maxConsecutive = Math.max(
+            metrics.errors.maxConsecutive, 
+            metrics.errors.consecutive
+        );
+        metrics.errors.lastError = error.message || error.toString();
+        metrics.errors.lastErrorTime = Date.now();
+        
+        const errorType = error.name || 'UnknownError';
+        metrics.errors.types[errorType] = (metrics.errors.types[errorType] || 0) + 1;
+        
+        metrics.health.isHealthy = metrics.errors.consecutive < 5;
+        metrics.health.lastFailureTime = Date.now();
+    };
 
-        try {
-            stats.requests++;
-            const response = await fetch(config.endpoint, {
-                method: 'GET',
-                cache: 'no-cache',
-                headers: {
-                    'Accept': 'application/json'
-                }
+    const resetConsecutiveErrors = () => {
+        metrics.errors.consecutive = 0;
+        metrics.health.isHealthy = true;
+        metrics.health.lastSuccessTime = Date.now();
+    };
+
+    const updateHealthMetrics = () => {
+        metrics.health.uptime = Date.now() - startTime;
+        
+        const total = metrics.requests.successful + metrics.requests.failed;
+        metrics.health.successRate = total > 0 
+            ? (metrics.requests.successful / total) * 100 
+            : 100;
+    };
+
+    const getResponseTimePercentile = (percentile) => {
+        if (metrics.performance.responseTimeHistory.length === 0) return 0;
+        
+        const sorted = [...metrics.performance.responseTimeHistory].sort((a, b) => a - b);
+        const index = Math.ceil((percentile / 100) * sorted.length) - 1;
+        return sorted[Math.max(0, index)];
+    };
+
+    // Metrics reporting
+    const reportMetrics = () => {
+        if (!config.performanceMonitoring) return;
+
+        const report = {
+            timestamp: new Date().toISOString(),
+            uptime: metrics.health.uptime,
+            requests: metrics.requests,
+            performance: {
+                ...metrics.performance,
+                p50: getResponseTimePercentile(50),
+                p95: getResponseTimePercentile(95),
+                p99: getResponseTimePercentile(99)
+            },
+            errors: metrics.errors,
+            health: metrics.health,
+            server: metrics.server
+        };
+
+        if (config.detailedLogging) {
+            console.group('AdjustHook Detailed Metrics');
+            console.table({
+                'Total Requests': metrics.requests.total,
+                'Success Rate': `${metrics.health.successRate.toFixed(2)}%`,
+                'Avg Response': `${metrics.performance.avgResponseTime.toFixed(2)}ms`,
+                'P95 Response': `${getResponseTimePercentile(95).toFixed(2)}ms`,
+                'Consecutive Errors': metrics.errors.consecutive,
+                'Health Status': metrics.health.isHealthy ? 'Healthy' : 'Degraded'
             });
+            console.groupEnd();
+        } else {
+            console.log(
+                `AdjustHook: ${metrics.requests.total} req, ` +
+                `${metrics.health.successRate.toFixed(1)}% success, ` +
+                `${metrics.performance.avgResponseTime.toFixed(1)}ms avg, ` +
+                `${metrics.errors.consecutive} consecutive errors`
+            );
+        }
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
+        if (config.onMetricsUpdate) {
+            config.onMetricsUpdate(report);
+        }
+    };
 
-            const data = await response.json();
-            if (data && data.reload) {
-                const responseTime = performance.now() - startTime;
-                console.info(`AdjustHook: Reload triggered by server (Response: ${responseTime.toFixed(2)}ms, Memory: ${data.memory_usage || 0} bytes)`);
-                config.onReload();
-            }
-        } catch (error) {
-            // Only log errors in development
-            if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-                stats.errors++;
-                config.onError(error);
-            }
-        } finally {
-            isChecking = false;
+    const performHealthCheck = () => {
+        updateHealthMetrics();
+        
+        if (config.detailedLogging) {
+            console.log(`AdjustHook Health Check: ${metrics.health.isHealthy ? 'Healthy' : 'Degraded'}`);
+        }
+    };
 
-            // Update performance stats
-            const endTime = performance.now();
-            const requestTime = endTime - startTime;
-            stats.totalTime += requestTime;
-            stats.avgTime = stats.totalTime / stats.requests;
-            stats.lastCheckTime = requestTime;
-
-            // Log performance stats every 10 requests if monitoring is enabled
-            if (config.performanceMonitoring && stats.requests % 10 === 0) {
-                console.log(`AdjustHook Stats: ${stats.requests} requests, ${stats.errors} errors, Avg: ${stats.avgTime.toFixed(2)}ms, Last: ${requestTime.toFixed(2)}ms`);
+    // RETRY
+    const executeWithRetry = async (fn, maxRetries = config.maxRetries) => {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return await fn();
+            } catch (error) {
+                if (attempt === maxRetries) {
+                    throw error;
+                }
+                
+                metrics.requests.retries++;
+                const delay = config.retryDelay * attempt; // Exponential backoff
+                
+                if (config.detailedLogging) {
+                    console.warn(`AdjustHook: Retry ${attempt}/${maxRetries} in ${delay}ms`);
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
     };
 
-    // Start checking
-    intervalId = setInterval(checkReload, config.interval);
-    console.debug(`AdjustHook: Started reload checking every ${config.interval}ms with performance monitoring`);
+    // Check reload function
+    const checkReload = async () => {
+        if (isChecking) return;
 
-    // Return cleanup function with stats
+        isChecking = true;
+        const requestStart = performance.now();
+
+        try {
+            await executeWithRetry(async () => {
+                metrics.requests.total++;
+                
+                const response = await fetch(config.endpoint, {
+                    method: 'GET',
+                    cache: 'no-cache',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-AdjustHook-Version': '2.0',
+                        'X-Request-ID': `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                    },
+                    signal: AbortSignal.timeout(5000) // 5s
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const responseTime = performance.now() - requestStart;
+
+                if (data.metrics) {
+                    Object.assign(metrics.server, {
+                        memoryUsage: data.metrics.memory || 0,
+                        cpuUsage: data.metrics.cpu || 0,
+                        uptime: data.metrics.uptime || 0,
+                        version: data.metrics.version || null,
+                        lastUpdate: Date.now()
+                    });
+                }
+
+                updatePerformanceMetrics(responseTime);
+                metrics.requests.successful++;
+                resetConsecutiveErrors();
+
+                if (data && data.reload) {
+                    console.info(
+                        `AdjustHook: Reload triggered by server ` +
+                        `(Response: ${responseTime.toFixed(2)}ms, ` +
+                        `Memory: ${formatBytes(data.metrics?.memory || 0)})`
+                    );
+                    config.onReload();
+                    return;
+                }
+
+                if (metrics.requests.total % config.metricsReportInterval === 0) {
+                    reportMetrics();
+                }
+            });
+
+        } catch (error) {
+            metrics.requests.failed++;
+            updateErrorMetrics(error);
+
+            // Only log errors in development
+            if (config.detailedLogging || 
+                location.hostname === 'localhost' || 
+                location.hostname === '127.0.0.1') {
+                config.onError(error);
+            }
+        } finally {
+            isChecking = false;
+            updateHealthMetrics();
+        }
+    };
+
+    const formatBytes = (bytes) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    intervalId = setInterval(checkReload, config.interval);
+    healthCheckId = setInterval(performHealthCheck, config.healthCheckInterval);
+    
+    console.debug(
+        `AdjustHook: Started monitoring ` +
+        `(${config.interval}ms interval, ${config.maxRetries} retries, ` +
+        `health check every ${config.healthCheckInterval}ms)`
+    );
+
+    // Return control object
     return {
         stop: () => {
             if (intervalId) {
                 clearInterval(intervalId);
-                console.debug('AdjustHook: Stopped reload checking');
-                if (config.performanceMonitoring) {
-                    console.log(`AdjustHook Final Stats: ${stats.requests} requests, ${stats.errors} errors, Avg response: ${stats.avgTime.toFixed(2)}ms`);
-                }
+                intervalId = null;
+            }
+            if (healthCheckId) {
+                clearInterval(healthCheckId);
+                healthCheckId = null;
+            }
+            
+            console.debug('AdjustHook: Stopped');
+            
+            if (config.performanceMonitoring) {
+                console.log('AdjustHook Final Report:');
+                reportMetrics();
             }
         },
-        getStats: () => ({ ...stats }),
-        getLastCheckTime: () => stats.lastCheckTime
+
+        getStats: () => ({
+            requests: metrics.requests.total,
+            errors: metrics.errors.total,
+            totalTime: metrics.performance.totalTime,
+            avgTime: metrics.performance.avgResponseTime,
+            lastCheckTime: metrics.performance.lastResponseTime
+        }),
+
+        getMetrics: () => ({
+            ...metrics,
+            summary: {
+                uptime: metrics.health.uptime,
+                successRate: metrics.health.successRate,
+                avgResponseTime: metrics.performance.avgResponseTime,
+                p95ResponseTime: getResponseTimePercentile(95),
+                healthStatus: metrics.health.isHealthy ? 'healthy' : 'degraded'
+            }
+        }),
+
+        reportMetrics,
+        getLastCheckTime: () => metrics.performance.lastResponseTime,
+        isHealthy: () => metrics.health.isHealthy,
+
+        getFormattedMetrics: () => ({
+            uptime: formatDuration(metrics.health.uptime),
+            successRate: `${metrics.health.successRate.toFixed(2)}%`,
+            avgResponse: `${metrics.performance.avgResponseTime.toFixed(2)}ms`,
+            memoryUsage: formatBytes(metrics.server.memoryUsage),
+            totalRequests: metrics.requests.total.toLocaleString(),
+            errorRate: `${((metrics.requests.failed / metrics.requests.total) * 100).toFixed(2)}%`
+        })
     };
+
+    // Helper
+    function formatDuration(ms) {
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        
+        if (hours > 0) return `${hours}h ${minutes % 60}m`;
+        if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+        return `${seconds}s`;
+    }
 };
 
 export const MintUtils = {
@@ -669,25 +1113,48 @@ export const MintUtils = {
             timeout = setTimeout(later, wait);
         };
     },
-    deepEqual: (a, b) => {
-        try {
-            return JSON.stringify(a) === JSON.stringify(b);
-        } catch {
-            return a === b;
+    deepEqual: function deepEqual(obj1, obj2) {
+        if (obj1 === obj2) return true;
+
+        if (obj1 === null || obj1 === undefined || obj2 === null || obj2 === undefined) {
+            return obj1 === obj2;
         }
+
+        if (obj1.constructor !== obj2.constructor) return false;
+
+        if (Array.isArray(obj1)) {
+            if (obj1.length !== obj2.length) return false;
+            for (let i = 0; i < obj1.length; i++) {
+                if (!deepEqual(obj1[i], obj2[i])) return false;
+            }
+            return true;
+        }
+
+        const keys1 = Object.keys(obj1);
+        const keys2 = Object.keys(obj2);
+        if (keys1.length !== keys2.length) return false;
+        for (const key of keys1) {
+            if (!Object.prototype.hasOwnProperty.call(obj2, key) || !deepEqual(obj1[key], obj2[key])) {
+                return false;
+            }
+        }
+        return true;
     }
 };
 
 // Performance monitoring utility
 export const PerformanceMonitor = {
     timers: new Map(),
+    enabled: false,
 
     start(label) {
+        if (!this.enabled) return this;
         this.timers.set(label, performance.now());
         return this;
     },
 
     end(label) {
+        if (!this.enabled) return 0;
         const startTime = this.timers.get(label);
         if (startTime) {
             const duration = performance.now() - startTime;
@@ -722,15 +1189,26 @@ export const PerformanceMonitor = {
 
     clear() {
         this.timers.clear();
+    },
+
+    enable() {
+        this.enabled = true;
+        console.log('PerformanceMonitor enabled.');
+    },
+
+    disable() {
+        this.enabled = false;
     }
 };
 
-// Enhanced reload performance tracker
+// Reload performance tracker
 export const ReloadPerformanceTracker = {
     history: [],
-    maxHistory: 100,
+    maxHistory: 25,
+    enabled: false,
 
     recordReload(duration, fileCount = 0, memoryUsage = 0) {
+        if (!this.enabled) return null;
         const entry = {
             timestamp: Date.now(),
             duration,
@@ -768,6 +1246,7 @@ export const ReloadPerformanceTracker = {
     },
 
     logStats() {
+        if (!this.enabled) return;
         const stats = this.getStats();
         if (stats) {
             console.log(`Reload Performance Stats:`);
@@ -781,5 +1260,14 @@ export const ReloadPerformanceTracker = {
 
     clear() {
         this.history = [];
+    },
+
+    enable() {
+        this.enabled = true;
+        console.log('ReloadPerformanceTracker enabled.');
+    },
+
+    disable() {
+        this.enabled = false;
     }
 };

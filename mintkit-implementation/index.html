@@ -12,6 +12,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mintkit framework</title>
+    <link rel="preload" href="/framework/utils.min.js" as="script" crossorigin="anonymous" />
+    <link rel="modulepreload" href="./framework/utils.js" />
 </head>
 
 <body>
@@ -21,7 +23,6 @@
         import { WebContent } from '/redistributables/content.js';
 
         const App = async () => {
-            await Mint.include('/redistributables/style.css'); // Your Custom CSS goes here
 
             const root = {
                 html : WebContent.components,
@@ -30,7 +31,7 @@
 
             requestAnimationFrame(() => {
                 Mint.injectHTML('#app', root.html)
-                Mint.injectCSS(root.css)
+                Mint.injectCSS(root.css) // { validate: false } Not recommended for production
             });
         };
 

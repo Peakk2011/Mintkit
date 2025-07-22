@@ -1,38 +1,51 @@
 import {
+    // Core DOM/Content
+    injectCSS,
+    injectHTML,
+    injectTitle,
+    createState, // vDom
+    // Utility
     get,
     include,
     processIncludes,
-    injectTitle,
-    injectCSS,
-    injectHTML,
-    createState,
     AdjustHook,
+    PerformanceMonitor,
+    ReloadPerformanceTracker,
+    getInjectionStats,
+    clearInjectionCache,
+    // Functional Utilities
     pipe,
     compose,
+    // General Utilities Object
     MintUtils,
-    PerformanceMonitor,
-    ReloadPerformanceTracker
 } from './MintUtils.js';
 import { MintAssembly } from './HTMLInterpreter.js';
 
-export { get, include, processIncludes, injectTitle } from './MintUtils.js';
-
 export const Mint = {
+    createState,
+    // Injection (main)
+    injectCSS,
+    injectHTML,
+    injectTitle,
     get,
     include,
     processIncludes,
-    injectTitle,
-    injectCSS,
-    injectHTML,
-    createState,
     AdjustHook,
     MintAssembly
 };
 
-export const MintUtilsKit = {
-    pipe,
+export const Utility = {
+    pipe, // Functional programming
     compose,
-    MintUtils,
+    // Performance Monitoring
     PerformanceMonitor,
-    ReloadPerformanceTracker
+    ReloadPerformanceTracker,
+    getInjectionStats,
+    clearInjectionCache,
+    // General
+    MintUtils,
 };
+
+// Direct Named Exports
+export * from './MintUtils.js';
+export { MintAssembly } from './HTMLInterpreter.js';
