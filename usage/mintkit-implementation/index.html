@@ -13,13 +13,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mintkit framework</title>
     <link rel="preload" href="/framework/utils.min.js" as="script" crossorigin="anonymous" />
-    <link rel="modulepreload" href="./framework/utils.js" />
+    <link rel="modulepreload" href="./framework/utils.min.js" />
 </head>
 
 <body>
     <div id="app"></div>
     <script type="module">
-        import { Mint } from '/framework/mint.js';
+        // import { Mint } from '/framework/mint.js';
+        import { Mint } from './framework/mintkitLite.js';
         import { WebContent } from '/redistributables/content.js';
 
         const App = async () => {
