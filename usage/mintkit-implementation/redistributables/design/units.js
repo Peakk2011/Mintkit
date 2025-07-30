@@ -1,11 +1,16 @@
 /**
- * Mintkit units user-agent-stylesheet
+ * Mintkit design system
  * Redistributables folder stored web data,design,units here 
  */
+import { Mint } from '../../framework/mintkitLite.js';
 
 // Typography Configuration
 const typography = {
     fontImport: "@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@100..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Manrope:wght@200..800&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Trirong:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');",
+    // From Fontshare
+    htmlFontsImport: `
+        <link href="https://api.fontshare.com/v2/css?f[]=general-sans@200,201,300,301,400,401,500,501,600,601,700,701,1,2&display=swap" rel="stylesheet">
+    `,
 
     families: {
         sans: {
@@ -13,6 +18,7 @@ const typography = {
             anuphan: '"Anuphan", sans-serif',
             manrope: '"Manrope", sans-serif',
             instrumentSans: '"Instrument Sans", sans-serif',
+            generalSans: '"General Sans", sans-serif'
         },
         serif: {
             merriweather: '"Merriweather", serif',
@@ -380,3 +386,11 @@ export const Design = {
 };
 
 export default WebElements;
+
+// Design inject (Build-in) "if you dont need or dont want to use it you can remove"
+
+Mint.injectCSS(`
+    *, *::before, *::after {
+        font-family: ${typography.families.sans.generalSans} !important;
+    }    
+`);

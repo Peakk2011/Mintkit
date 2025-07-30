@@ -12,8 +12,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mintkit framework</title>
-    <link rel="preload" href="/framework/utils.min.js" as="script" crossorigin="anonymous" />
-    <link rel="modulepreload" href="./framework/utils.min.js" />
+    <link rel="preload" href="./framework/mintkitLite.js" as="script" crossorigin="anonymous" />
+    <link rel="modulepreload" href="./framework/mintkitLite.js" />
 </head>
 
 <body>
@@ -21,7 +21,8 @@
     <script type="module">
         // import { Mint } from '/framework/mint.js';
         import { Mint } from './framework/mintkitLite.js';
-        import { WebContent } from '/redistributables/content.js';
+        import { WebContent } from './redistributables/content.js';
+        Mint.include('./redistributables/design/mint-uas.css');
 
         const App = async () => {
 
