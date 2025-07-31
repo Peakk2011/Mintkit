@@ -1,0 +1,60 @@
+@import url("./mint-uas.css");
+
+/* Buttons */
+
+.Button {
+    position: relative;
+    background: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 82.7%), hsl(197 10% 59%));
+    padding: 2px;
+    border-radius: 100vmax;
+    display: inline-block;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-out;
+}
+
+.Button .Button-inner {
+    background: linear-gradient(180deg, hsl(48 50% 96.1%), hsl(176 17% 81.6%));
+    border-radius: 100vmax;
+    text-align: center;
+    color: #4B4B4B;
+    font-size: 18px;
+    font-weight: 450;
+    letter-spacing: -0.2px;
+    padding: 0.5rem 1.15rem;
+    transition: all 0.15s ease-out;
+    box-shadow:
+        0 6px 10px rgba(191, 200, 230, 0.4),
+        0 4px 20px rgba(191, 200, 230, 0.2);
+}
+
+.Button:hover {
+    background: hsl(0, 0%, 0%);
+    transform: translateY(-2px);
+}
+
+.Button:hover .Button-inner {
+    background: hsl(0, 0%, 0%);
+    box-shadow: 0px 12px 25px hsl(0, 0%, 60%);
+    color: hsl(0, 0%, 100%);
+}
+
+.Button:active {
+    transform: translateY(0px) scale(0.96);
+    transition: all 0.08s ease-out;
+}
+
+.Button:active .Button-inner {
+    transform: scale(0.92);
+    transition: all 0.08s ease-out;
+}
+
+/* 
+    <a class="container" href="index.html">
+            <div class="Button">
+                <div class="Button-inner">
+                    Click me
+                </div>
+            </div>
+    </a>
+*/
