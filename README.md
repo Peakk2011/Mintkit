@@ -37,81 +37,85 @@ Whether you're building a simple website or a complex web application, Mintkit's
 
 ### 1. Basic Setup
 ```html
-<!doctype html>
+<!-- index.html -->
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mintkit pure HTML</title>
+    <link rel="dns-prefetch" href="//mint-teams.web.app" />
+    <link rel="preconnect" href="https://mint-teams.web.app" crossorigin />
+    <link rel="modulepreload" href="https://mint-teams.web.app/Mintkit/mint.js" />
 </head>
 <body>
-  <div id="app"></div>
-  <script src="app.js" type="module" async></script>
+    <div id="app"></div>
+
+    <script type="module">
+        import { Mint } from "https://mint-teams.web.app/Mintkit/mint.js";
+
+        const app = `
+            <h1>
+                Hello, Mintkit!
+            </h1>
+        `;
+
+        queueMicrotask(() => Mint.injectHTML("#app", app));
+    </script>
 </body>
 </html>
 ```
 
-### 2. Import Framework
-```javascript
-// mint.js
-import { createState, injectCSS, injectHTML, injectTitle } from './MintUtils.js';
-import { MintAssembly } from './HTMLInterpreter.js';
+### 2. Add your page content
 
-export const Mint = {
-    createState,
-    injectCSS,
-    injectHTML,
-    injectTitle,
-    MintAssembly
-};
+```PseudoCode
+// Create your content file ex. Content.js
+// Link your content file into Mintkit pages (index.html)
+Javascript -> import { Content } from 'content.js';
 ```
 
-### 3. Create Content
-```javascript
-// Content.js
-export const WebContent = {
-    PageTitle: 'My Mintkit App',
-    
-    HTMLContent: {
-        Introduce() {
-            return `<div class="introduce"><h1>Welcome to Mintkit</h1></div>`;
-        }
-    },
-    
-    ElementComponents() {
-        return this.HTMLContent.Introduce();
-    },
-    
-    StyledElementComponents() {
-        return `
-            .introduce {
-                text-align: center;
-                padding: 2rem;
-                font-family: 'Inter Tight', sans-serif;
-            }
-        `;
-    }
-};
+```js
+// content.js
+
+export const Content = {
+  components: `
+      <!-- Enter html code here -->
+      <button>Hello mintkit</button>
+  `,
+  stylesheet: `
+      /*
+          Enter your CSS code here
+      */
+  `
+}
 ```
 
-### 4. Initialize App
-```javascript
-// app.js
-import { Mint } from './lib/mint.js';
-import { WebContent } from './Content.js';
+Than you go back into Mintkit pages (index.html) and insert this code inside script tag
 
-const Main = Mint.createState({});
+```js
+import { Mint } from 'https://mint-teams.web.app/Mintkit/mint.js';
+import { Content } from 'content.js';
 
-const render = () => {
-    const html = WebContent.ElementComponents();
-    const css = WebContent.StyledElementComponents();
-    
-    Mint.injectCSS(css);
-    Mint.injectHTML('#app', html);
-    Mint.injectTitle(`<title>${WebContent.PageTitle}</title>`);
+const App = () => {
+    const root = {
+        html: Content.components,
+        css: Content.stylesheet
+    };
+
+    queueMicrotask(() => {
+        Mint.injectHTML('#app', root.html);
+    });
 };
 
-Main.subscribe(render);
-Main.set({});
+App();
+
+```
+
+### 3. include you css with Mintkit
+
+```js
+Mint.include('./redistributables/design/mint-uas.css');
 ```
 
 ## Build-in Features
