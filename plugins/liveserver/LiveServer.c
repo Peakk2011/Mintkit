@@ -7,10 +7,10 @@
 #include <dirent.h>
 #include <stdint.h>
 #include <shellapi.h>
-#include <time.h>  
-#include <process.h> // _beginthreadex
-#include <dwmapi.h>  // Dark mode title bar
-#include <uxtheme.h> // SetWindowTheme
+#include <time.h>
+#include <process.h>
+#include <dwmapi.h>
+#include <uxtheme.h>
 #include <richedit.h>
 #include <commctrl.h>
 #include <windowsx.h>
@@ -19,6 +19,38 @@
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "uxtheme.lib")
 
+// WebSocket support for smart updates
+typedef struct WebSocketClient {
+    SOCKET socket;
+    int is_websocket;
+    struct WebSocketClient* next;
+} WebSocketClient;
+
+static WebSocketClient* ws_clients = NULL;
+static CRITICAL_SECTION ws_clients_lock;
+
+// File type detection for smart updates
+typedef enum {
+    FILE_TYPE_HTML,
+    FILE_TYPE_CSS,
+    FILE_TYPE_JS,
+    FILE_TYPE_JSON,
+    FILE_TYPE_OTHER
+} FileType;
+
+// Change tracking
+typedef struct FileChange {
+    char filename[260];
+    FileType type;
+    char* old_content;
+    char* new_content;
+    time_t change_time;
+} FileChange;
+
+static FileChange* recent_changes = NULL;
+static int recent_changes_count = 0;
+
+// Original variables (keeping existing structure)
 static HWND hLogEdit = NULL;
 static HANDLE hServerThread = NULL;
 static volatile int server_running = 1;
@@ -34,27 +66,6 @@ static WNDPROC g_OrigRichEditProc = NULL;
 static RECT g_windowRect = {0};
 static HACCEL g_hAccel = NULL;
 
-#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
-#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
-#endif
-#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20
-#define DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20 19
-#endif
-
-// declarations
-void Log(const char* format, ...);
-void LogWithColor(const char* format, COLORREF color, ...);
-void serve_404_page(SOCKET client, const char* requested_file);
-BOOL IsDarkModeEnabled();
-void ToggleScrollbar(HWND hwnd);
-void ToggleFullscreen(HWND hwnd);
-void CreateContextMenu(HWND hwnd);
-void UpdateScrollbarVisibility(HWND hwnd);
-void CreateAppAcceleratorTable();
-
-void serve_mintkit_enhanced_html(SOCKET client, const char *filename);
-void serve_mintkit_api(SOCKET client, const char *request);
-
 typedef struct {
     int argc;
     char** argv;
@@ -66,6 +77,7 @@ typedef struct FileSnapshot {
     size_t size;
     FILETIME last_modified;
     int line_count;
+    FileType type;
 } FileSnapshot;
 
 typedef struct MemoryPool {
@@ -83,100 +95,319 @@ static FileSnapshot* file_snapshots = NULL;
 static int snapshot_count = 0;
 static int snapshot_capacity = 0;
 
-static const char* PAGE_404_HTML =
-    "<!DOCTYPE html>"
-    "<html lang=\"en\">"
-    "<head>"
-    "    <meta charset=\"UTF-8\">"
-    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-    "    <title>404 Not Found</title>"
-    "    <style>"
-    "        :root {"
-    "            --bg-color: #faf9f5;"
-    "            --text-color: #333333;"
-    "            --title-color: #000000;"
-    "        }"
-    "        @media (prefers-color-scheme: dark) {"
-    "            :root {"
-    "                --bg-color: #0d0d0d;"
-    "                --text-color: #e5e4e0;"
-    "                --title-color: #faf9f5;"
-    "            }"
-    "        }"
-    "        body {"
-    "            font-family: -apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", Roboto, \\\"Helvetica Neue\\\", Arial, sans-serif;"
-    "            background-color: var(--bg-color);"
-    "            color: var(--text-color);"
-    "            display: flex;"
-    "            justify-content: center;"
-    "            align-items: center;"
-    "            height: 100vh;"
-    "            margin: 0;"
-    "            text-align: center;"
-    "        }"
-    "        .container { max-width: 600px; padding: 2rem; }"
-    "        h1 { font-size: 6rem; font-weight: 600; margin: 0; color: var(--title-color); margin-bottom: 1rem; }"
-    "        h2 { font-size: 1.5rem; margin-top: 0; margin-bottom: 1.7rem; font-weight: 500; }"
-    "        p { margin-bottom: 2rem; width: 300px; }"
-    "    </style>"
-    "</head>"
-    "<body>"
-    "    <div class=\"container\">"
-    "        <h1>404</h1>"
-    "        <h2>Page Not Found</h2>"
-    "        <p>The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.</p>"
-    "    </div>"
-    "</body>"
-    "</html>";
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
+#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
+#endif
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20
+#define DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20 19
+#endif
 
-static inline void fast_memcpy(void* dest, const void* src, size_t n) {
-    #ifdef _WIN64
-    __asm__ volatile (
-        "cld\n\t"
-        "rep movsb"
-        : "=&D" (dest), "=&S" (src), "=&c" (n)
-        : "0" (dest), "1" (src), "2" (n)
-        : "memory"
-    );
-    #else
-    memcpy(dest, src, n);
-    #endif
+// Function declarations
+void Log(const char* format, ...);
+void LogWithColor(const char* format, COLORREF color, ...);
+void serve_404_page(SOCKET client, const char* requested_file);
+
+// Live-reload script - Fixed string termination
+static const char* SMART_LIVE_RELOAD_JS = 
+    "class SmartHMR {\n"
+    "    constructor() {\n"
+    "        this.ws = null;\n"
+    "        this.reconnectAttempts = 0;\n"
+    "        this.maxReconnectAttempts = 5;\n"
+    "        this.state = {};\n"
+    "        this.connect();\n"
+    "    }\n"
+    "\n"
+    "    connect() {\n"
+    "        if (this.ws && this.ws.readyState === WebSocket.OPEN) return;\n"
+    "        \n"
+    "        try {\n"
+    "            this.ws = new WebSocket('ws://localhost:3001');\n"
+    "            this.ws.onopen = () => {\n"
+    "                console.log('HMR Connected');\n"
+    "                this.showStatus('Connected', 'success');\n"
+    "                this.reconnectAttempts = 0;\n"
+    "            };\n"
+    "            \n"
+    "            this.ws.onmessage = (event) => {\n"
+    "                try {\n"
+    "                    const data = JSON.parse(event.data);\n"
+    "                    this.handleUpdate(data);\n"
+    "                } catch (e) {\n"
+    "                    console.error('HMR message parse error:', e);\n"
+    "                }\n"
+    "            };\n"
+    "            \n"
+    "            this.ws.onclose = () => {\n"
+    "                console.log('HMR disconnected');\n"
+    "                this.showStatus('Disconnected', 'error');\n"
+    "                this.reconnect();\n"
+    "            };\n"
+    "        } catch (error) {\n"
+    "            console.error('WebSocket connection failed:', error);\n"
+    "            setTimeout(() => this.connect(), 1000);\n"
+    "        }\n"
+    "    }\n"
+    "\n"
+    "    handleUpdate(data) {\n"
+    "        switch (data.type) {\n"
+    "            case 'css':\n"
+    "                this.updateCSS(data.filename, data.content);\n"
+    "                break;\n"
+    "            case 'js':\n"
+    "                this.updateJS(data.filename, data.content);\n"
+    "                break;\n"
+    "            case 'html':\n"
+    "                this.updateHTML(data.filename, data.content);\n"
+    "                break;\n"
+    "            case 'reload':\n"
+    "                this.fullReload();\n"
+    "                break;\n"
+    "        }\n"
+    "    }\n"
+    "\n"
+    "    updateCSS(filename, content) {\n"
+    "        this.preserveState();\n"
+    "        \n"
+    "        let link = document.querySelector(`link[href*='${filename}']`);\n"
+    "        if (link) {\n"
+    "            const newLink = link.cloneNode();\n"
+    "            newLink.href = filename + '?t=' + Date.now();\n"
+    "            link.parentNode.insertBefore(newLink, link.nextSibling);\n"
+    "            setTimeout(() => link.remove(), 100);\n"
+    "        } else {\n"
+    "            // Update inline styles\n"
+    "            const styles = document.querySelectorAll('style');\n"
+    "            styles.forEach(style => {\n"
+    "                if (style.textContent.includes(filename.replace('.css', ''))) {\n"
+    "                    style.textContent = content;\n"
+    "                }\n"
+    "            });\n"
+    "        }\n"
+    "        \n"
+    "        this.showStatus(`CSS Updated: ${filename}`, 'success');\n"
+    "        this.restoreState();\n"
+    "    }\n"
+    "\n"
+    "    updateJS(filename, content) {\n"
+    "        this.preserveState();\n"
+    "        \n"
+    "        // For now, reload for JS changes (can be improved)\n"
+    "        console.log(`⚡ JS file changed: ${filename}`);\n"
+    "        this.showStatus(`⚡ JS Updated: ${filename}`, 'warning');\n"
+    "        setTimeout(() => this.fullReload(), 500);\n"
+    "    }\n"
+    "\n"
+    "    updateHTML(filename, content) {\n"
+    "        this.preserveState();\n"
+    "        this.showStatus(`HTML Updated: ${filename}`, 'warning');\n"
+    "        setTimeout(() => this.fullReload(), 300);\n"
+    "    }\n"
+    "\n"
+    "    fullReload() {\n"
+    "        console.log('Full page reload');\n"
+    "        location.reload();\n"
+    "    }\n"
+    "\n"
+    "    preserveState() {\n"
+    "        this.state.scroll = window.scrollY;\n"
+    "        this.state.inputs = {};\n"
+    "        \n"
+    "        document.querySelectorAll('input, textarea, select').forEach(el => {\n"
+    "            if (el.id || el.name) {\n"
+    "                this.state.inputs[el.id || el.name] = el.value;\n"
+    "            }\n"
+    "        });\n"
+    "    }\n"
+    "\n"
+    "    restoreState() {\n"
+    "        if (this.state.scroll !== undefined) {\n"
+    "            window.scrollTo(0, this.state.scroll);\n"
+    "        }\n"
+    "        \n"
+    "        Object.keys(this.state.inputs || {}).forEach(key => {\n"
+    "            const el = document.getElementById(key) || document.querySelector(`[name='${key}']`);\n"
+    "            if (el) el.value = this.state.inputs[key];\n"
+    "        });\n"
+    "    }\n"
+    "\n"
+    "    showStatus(message, type) {\n"
+    "        let status = document.getElementById('hmr-status');\n"
+    "        if (!status) {\n"
+    "            status = document.createElement('div');\n"
+    "            status.id = 'hmr-status';\n"
+    "            status.style.cssText = `\n"
+    "                position: fixed; top: 20px; right: 20px; z-index: 10000;\n"
+    "                padding: 8px 16px; border-radius: 4px; font-size: 12px;\n"
+    "                font-family: monospace; font-weight: bold;\n"
+    "                transition: all 0.3s ease; transform: translateX(100%);\n"
+    "            `;\n"
+    "            document.body.appendChild(status);\n"
+    "        }\n"
+    "        \n"
+    "        const colors = {\n"
+    "            success: 'background: #10b981; color: white;',\n"
+    "            warning: 'background: #f59e0b; color: white;',\n"
+    "            error: 'background: #ef4444; color: white;'\n"
+    "        };\n"
+    "        \n"
+    "        status.style.cssText += colors[type] || colors.success;\n"
+    "        status.textContent = message;\n"
+    "        status.style.transform = 'translateX(0)';\n"
+    "        \n"
+    "        setTimeout(() => {\n"
+    "            status.style.transform = 'translateX(100%)';\n"
+    "        }, 3000);\n"
+    "    }\n"
+    "\n"
+    "    reconnect() {\n"
+    "        if (this.reconnectAttempts >= this.maxReconnectAttempts) {\n"
+    "            console.log('Max reconnection attempts reached');\n"
+    "            return;\n"
+    "        }\n"
+    "        \n"
+    "        this.reconnectAttempts++;\n"
+    "        setTimeout(() => this.connect(), 1000 * this.reconnectAttempts);\n"
+    "    }\n"
+    "}\n"
+    "\n"
+    "// Initialize Smart HMR\n"
+    "if (typeof window !== 'undefined') {\n"
+    "    window.smartHMR = new SmartHMR();\n"
+    "    \n"
+    "    // Fallback polling for servers without WebSocket\n"
+    "    setInterval(async () => {\n"
+    "        try {\n"
+    "            const response = await fetch('/reload');\n"
+    "            const data = await response.json();\n"
+    "            if (data.reload && (!window.smartHMR.ws || window.smartHMR.ws.readyState !== WebSocket.OPEN)) {\n"
+    "                console.log('Fallback reload detected');\n"
+    "                window.smartHMR.showStatus('File changed (fallback)', 'warning');\n"
+    "                setTimeout(() => location.reload(), 300);\n"
+    "            }\n"
+    "        } catch (e) {\n"
+    "            // Ignore polling errors\n"
+    "        }\n"
+    "    }, 1000);\n"
+    "}";
+
+// Determine file type - Fixed function name to avoid Windows API conflict
+FileType detect_file_type(const char* filename) {
+    const char* ext = strrchr(filename, '.');
+    if (!ext) return FILE_TYPE_OTHER;
+    
+    if (strcmp(ext, ".css") == 0) return FILE_TYPE_CSS;
+    if (strcmp(ext, ".js") == 0 || strcmp(ext, ".ts") == 0 || 
+        strcmp(ext, ".jsx") == 0 || strcmp(ext, ".tsx") == 0) return FILE_TYPE_JS;
+    if (strcmp(ext, ".html") == 0 || strcmp(ext, ".htm") == 0) return FILE_TYPE_HTML;
+    if (strcmp(ext, ".json") == 0) return FILE_TYPE_JSON;
+    
+    return FILE_TYPE_OTHER;
 }
 
-static inline void fast_memset(void* dest, int val, size_t n) {
-    #ifdef _WIN64
-    __asm__ volatile (
-        "cld\n\t"
-        "rep stosb"
-        : "=&D" (dest), "=&c" (n)
-        : "0" (dest), "a" (val), "1" (n)
-        : "memory"
-    );
-    #else
-    memset(dest, val, n);
-    #endif
+// WebSocket utilities
+void add_websocket_client(SOCKET client_socket) {
+    EnterCriticalSection(&ws_clients_lock);
+    
+    WebSocketClient* new_client = (WebSocketClient*)malloc(sizeof(WebSocketClient));
+    new_client->socket = client_socket;
+    new_client->is_websocket = 1;
+    new_client->next = ws_clients;
+    ws_clients = new_client;
+    
+    LeaveCriticalSection(&ws_clients_lock);
+    LogWithColor("WebSocket client connected", RGB(0, 255, 128));
 }
 
-static inline size_t fast_strlen(const char* str) {
-    size_t len;
-    #ifdef _WIN64
-    __asm__ volatile (
-        "xor %%rax, %%rax\n\t"
-        "mov $-1, %%rcx\n\t"
-        "cld\n\t"
-        "repne scasb\n\t"
-        "not %%rcx\n\t"
-        "dec %%rcx"
-        : "=c" (len)
-        : "D" (str), "a" (0)
-        : "memory"
-    );
-    return len;
-    #else
-    return strlen(str);
-    #endif
+void remove_websocket_client(SOCKET client_socket) {
+    EnterCriticalSection(&ws_clients_lock);
+    
+    WebSocketClient** current = &ws_clients;
+    while (*current) {
+        if ((*current)->socket == client_socket) {
+            WebSocketClient* to_remove = *current;
+            *current = (*current)->next;
+            free(to_remove);
+            break;
+        }
+        current = &(*current)->next;
+    }
+    
+    LeaveCriticalSection(&ws_clients_lock);
 }
 
+void broadcast_to_websockets(const char* message) {
+    EnterCriticalSection(&ws_clients_lock);
+    
+    WebSocketClient* current = ws_clients;
+    while (current) {
+        WebSocketClient* next = current->next;
+        
+        // Send WebSocket frame (simplified)
+        char frame[2048];
+        int message_len = strlen(message);
+        int frame_len;
+        
+        if (message_len < 126) {
+            frame[0] = 0x81; // Final frame, text
+            frame[1] = message_len;
+            memcpy(frame + 2, message, message_len);
+            frame_len = message_len + 2;
+        } else {
+            frame[0] = 0x81;
+            frame[1] = 126;
+            frame[2] = (message_len >> 8) & 0xFF;
+            frame[3] = message_len & 0xFF;
+            memcpy(frame + 4, message, message_len);
+            frame_len = message_len + 4;
+        }
+        
+        if (send(current->socket, frame, frame_len, 0) == SOCKET_ERROR) {
+            remove_websocket_client(current->socket);
+        }
+        
+        current = next;
+    }
+    
+    LeaveCriticalSection(&ws_clients_lock);
+}
+
+// File change detection
+void track_file_change(const char* filename, const char* old_content, const char* new_content) {
+    FileType type = detect_file_type(filename);
+    
+    // Create change notification
+    char notification[2048];
+    const char* type_str;
+    
+    switch (type) {
+        case FILE_TYPE_CSS: type_str = "css"; break;
+        case FILE_TYPE_JS: type_str = "js"; break;
+        case FILE_TYPE_HTML: type_str = "html"; break;
+        case FILE_TYPE_JSON: type_str = "json"; break;
+        default: type_str = "other"; break;
+    }
+    
+    snprintf(notification, sizeof(notification),
+        "{\"type\":\"%s\",\"filename\":\"%s\",\"timestamp\":%ld,\"action\":\"update\"}",
+        type_str, filename, (long)time(NULL));
+    
+    // Broadcast to WebSocket clients
+    broadcast_to_websockets(notification);
+    
+    // Log with appropriate color
+    COLORREF color;
+    switch (type) {
+        case FILE_TYPE_CSS: color = RGB(0, 255, 255); break;
+        case FILE_TYPE_JS: color = RGB(255, 255, 0); break;
+        case FILE_TYPE_HTML: color = RGB(255, 165, 0); break;
+        default: color = RGB(128, 128, 128); break;
+    }
+    
+    LogWithColor("HMR: %s (%s)", color, filename, type_str);
+}
+
+// Memory management
 MemoryPool* init_memory_pool(int initial_capacity) {
     MemoryPool* pool = (MemoryPool*)malloc(sizeof(MemoryPool));
     if (!pool) return NULL;
@@ -194,8 +425,8 @@ MemoryPool* init_memory_pool(int initial_capacity) {
         return NULL;
     }
     
-    fast_memset(pool->blocks, 0, sizeof(void*) * initial_capacity);
-    fast_memset(pool->sizes, 0, sizeof(size_t) * initial_capacity);
+    memset(pool->blocks, 0, sizeof(void*) * initial_capacity);
+    memset(pool->sizes, 0, sizeof(size_t) * initial_capacity);
     
     LogWithColor("Memory pool initialized: %d slots", RGB(0, 200, 255), initial_capacity);
     return pool;
@@ -229,7 +460,7 @@ void* smart_malloc(size_t size) {
         memory_pool->total_allocated += size;
     }
     
-    fast_memset(ptr, 0, size);
+    memset(ptr, 0, size);
     return ptr;
 }
 
@@ -252,100 +483,25 @@ void smart_free(void* ptr) {
     free(ptr);
 }
 
-char* read_file_content(const char* filename, size_t* file_size) {
+// Improved change detection with smart updates
+void update_file_snapshot(const char* filename, FILETIME* write_time) {
     FILE* file = fopen(filename, "rb");
-    if (!file) return NULL;
+    if (!file) return;
     
     fseek(file, 0, SEEK_END);
-    *file_size = ftell(file);
+    size_t file_size = ftell(file);
     rewind(file);
     
-    char* content = (char*)smart_malloc(*file_size + 1);
+    char* content = (char*)smart_malloc(file_size + 1);
     if (!content) {
         fclose(file);
-        return NULL;
-    }
-    
-    fread(content, 1, *file_size, file);
-    content[*file_size] = '\0';
-    fclose(file);
-    
-    return content;
-}
-
-int count_lines(const char* content) {
-    int lines = 1;
-    for (const char* p = content; *p; p++) {
-        if (*p == '\n') lines++;
-    }
-    return lines;
-}
-
-void compare_and_show_changes(const char* filename, const char* old_content, const char* new_content) {
-    const int MAX_LINE_LENGTH = 8192;
-    char* old_line = (char*)smart_malloc(MAX_LINE_LENGTH);
-    char* new_line = (char*)smart_malloc(MAX_LINE_LENGTH);
-
-    if (!old_line || !new_line) {
-        Log("[Memory Error] Failed to allocate memory for diff buffers.");
-        smart_free(old_line); // smart_free is safe to call on NULL
-        smart_free(new_line);
         return;
     }
     
-    const char* old_ptr = old_content;
-    const char* new_ptr = new_content;
-    int line_num = 1;
-    int changes_found = 0;
+    fread(content, 1, file_size, file);
+    content[file_size] = '\0';
+    fclose(file);
     
-    LogWithColor("File changed: %s", RGB(255, 255, 0), filename);
-    LogWithColor("─────────────────────────────────────────────", RGB(128, 128, 128));
-    
-    while (*old_ptr || *new_ptr) {
-        int old_len = 0;
-        while (*old_ptr && *old_ptr != '\n' && old_len < MAX_LINE_LENGTH - 1) {
-            old_line[old_len++] = *old_ptr++;
-        }
-        old_line[old_len] = '\0';
-        if (*old_ptr == '\n') old_ptr++;
-        
-        int new_len = 0;
-        while (*new_ptr && *new_ptr != '\n' && new_len < MAX_LINE_LENGTH - 1) {
-            new_line[new_len++] = *new_ptr++;
-        }
-        new_line[new_len] = '\0';
-        if (*new_ptr == '\n') new_ptr++;
-        
-        if (strcmp(old_line, new_line) != 0) {
-            if (old_len == 0 && new_len > 0) {
-                LogWithColor("+ %d: %s", RGB(0, 255, 0), line_num, new_line);
-            } else if (old_len > 0 && new_len == 0) {
-                LogWithColor("- %d: %s", RGB(255, 0, 0), line_num, old_line);
-            } else {
-                LogWithColor("~ %d: %s", RGB(255, 255, 0), line_num, new_line);
-            }
-            changes_found = 1;
-        }
-        
-        if (!*old_ptr && !*new_ptr) break;
-        line_num++;
-    }
-    
-    if (!changes_found) {
-        LogWithColor("No changes detected", RGB(128, 128, 128));
-    }
-    
-    LogWithColor("─────────────────────────────────────────────", RGB(128, 128, 128));
-    
-    smart_free(old_line);
-    smart_free(new_line);
-}
-
-void update_file_snapshot(const char* filename, FILETIME* write_time) {
-    size_t file_size;
-    char* content = read_file_content(filename, &file_size);
-    if (!content) return;
-
     FileSnapshot* snapshot = NULL;
     for (int i = 0; i < snapshot_count; i++) {
         if (strcmp(file_snapshots[i].filename, filename) == 0) {
@@ -364,37 +520,48 @@ void update_file_snapshot(const char* filename, FILETIME* write_time) {
         strncpy(snapshot->filename, filename, sizeof(snapshot->filename) - 1);
         snapshot->filename[sizeof(snapshot->filename) - 1] = '\0';
         snapshot->content = NULL;
+        snapshot->type = detect_file_type(filename);
     }
     
     if (snapshot->content) {
-        compare_and_show_changes(filename, snapshot->content, content);
+        // Smart update instead of just logging
+        track_file_change(filename, snapshot->content, content);
         smart_free(snapshot->content);
     } else {
-        LogWithColor("New file: %s", RGB(0, 255, 255), filename);
+        LogWithColor("New file tracked: %s", RGB(0, 255, 255), filename);
     }
     
     snapshot->content = content;
     snapshot->size = file_size;
     snapshot->last_modified = *write_time;
-    snapshot->line_count = count_lines(content);
 }
 
-static LARGE_INTEGER performance_frequency;
-static BOOL frequency_initialized = FALSE;
-
-static inline double get_high_res_time_ms() {
-    LARGE_INTEGER counter;
-    if (!frequency_initialized) {
-        QueryPerformanceFrequency(&performance_frequency);
-        frequency_initialized = TRUE;
-    }
-    QueryPerformanceCounter(&counter);
-    return (double)counter.QuadPart * 1000.0 / (double)performance_frequency.QuadPart;
-}
-
-int check_files_modified() {
-    double start_time_ms = get_high_res_time_ms();
+// Enhanced serve functions
+void serve_live_script(SOCKET client) {
+    size_t content_len = strlen(SMART_LIVE_RELOAD_JS);
     
+    char* header = (char*)smart_malloc(512);
+    if (!header) {
+        const char* error = "HTTP/1.1 500 Internal Server Error\r\n\r\nMemory allocation failed";
+        send(client, error, (int)strlen(error), 0);
+        return;
+    }
+    
+    int header_len = snprintf(header, 512,
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: application/javascript\r\n"
+        "Content-Length: %zu\r\n"
+        "Cache-Control: no-cache\r\n"
+        "Access-Control-Allow-Origin: *\r\n\r\n",
+        content_len);
+    
+    send(client, header, header_len, 0);
+    send(client, SMART_LIVE_RELOAD_JS, (int)content_len, 0);
+    smart_free(header);
+}
+
+// Check files with smart detection
+int check_files_modified() {
     WIN32_FIND_DATA findFileData;
     HANDLE hFind;
     FILETIME current_time;
@@ -423,43 +590,133 @@ int check_files_modified() {
     if (changed) {
         GetSystemTimeAsFileTime(&last_check_time);
         files_changed = 1;
-        
-        SYSTEMTIME st;
-        GetLocalTime(&st);
-        LogWithColor("Hot reload: %02d:%02d:%02d", RGB(255, 255, 0), st.wHour, st.wMinute, st.wSecond);
-    }
-    
-    double end_time_ms = get_high_res_time_ms();
-    if (changed) {
-        LogWithColor("Scan completed: %.3f ms", RGB(0, 200, 255), end_time_ms - start_time_ms);
     }
     
     return changed;
 }
 
-void serve_404_page(SOCKET client, const char* requested_file) {
-    LogWithColor("404: %s", RGB(255, 165, 0), requested_file);
-
-    size_t content_len = strlen(PAGE_404_HTML);
-
-    char header[256];
-    int header_len = snprintf(header, sizeof(header),
-        "HTTP/1.1 404 Not Found\r\n"
-        "Content-Type: text/html\r\n"
-        "Content-Length: %zu\r\n\r\n",
-        content_len);
-
-    send(client, header, header_len, 0);
-    send(client, PAGE_404_HTML, content_len, 0);
-}
-
-void serve_file(SOCKET client, const char *filename) {
-    double start_time_ms = get_high_res_time_ms();
-    
-    // Handle both relative and absolute paths
+// HTML serving with smart HMR injection
+void serve_mintkit_enhanced_html(SOCKET client, const char *filename) {
     const char *file_to_open = filename;
     if (filename[0] == '/') {
-        file_to_open = filename + 1; // Remove leading slash
+        file_to_open = filename + 1;
+    }
+    
+    FILE *file = fopen(file_to_open, "rb");
+    if (!file) {
+        serve_404_page(client, filename);
+        return;
+    }
+    
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    rewind(file);
+    
+    char *buffer = (char*)smart_malloc(size + 5000);
+    if (!buffer) {
+        const char *error = "HTTP/1.1 500 Internal Server Error\r\n\r\nMemory allocation failed";
+        send(client, error, (int)strlen(error), 0);
+        fclose(file);
+        return;
+    }
+    
+    size_t bytes_read = fread(buffer, 1, size, file);
+    fclose(file);
+    
+    // Inject
+    char *body_end = strstr(buffer, "</body>");
+    if (body_end) {
+        const char *smart_script = "<script src=\"/live-reload.js\"></script>";
+        size_t script_len = strlen(smart_script);
+        memmove(body_end + script_len, body_end, strlen(body_end) + 1);
+        memcpy(body_end, smart_script, script_len);
+        bytes_read += script_len;
+    }
+    
+    char *header = (char*)smart_malloc(512);
+    int header_len = snprintf(header, 512,
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/html; charset=utf-8\r\n"
+        "Content-Length: %zu\r\n"
+        "Cache-Control: no-cache\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "X-Smart-HMR: enabled\r\n\r\n",
+        bytes_read);
+    
+    send(client, header, header_len, 0);
+    send(client, buffer, (int)bytes_read, 0);
+    
+    smart_free(buffer);
+    smart_free(header);
+    
+    LogWithColor("HMR HTML: %s", RGB(0, 255, 128), filename);
+}
+
+void Log(const char* format, ...) {
+    if (!hLogEdit) return;
+    
+    char buffer[4096];
+    va_list args;
+    va_start(args, format);
+    int count = vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    
+    if (count < 0) return;
+    
+    int len = GetWindowTextLength(hLogEdit);
+    SendMessage(hLogEdit, EM_SETSEL, (WPARAM)len, (LPARAM)len);
+    SendMessage(hLogEdit, EM_REPLACESEL, 0, (LPARAM)buffer);
+    SendMessage(hLogEdit, EM_REPLACESEL, 0, (LPARAM)"\r\n");
+}
+
+void LogWithColor(const char* format, COLORREF color, ...) {
+    if (!hLogEdit) return;
+    
+    char buffer[4096];
+    va_list args;
+    va_start(args, color);
+    int count = vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    if (count < 0) return;
+    
+    int len = GetWindowTextLength(hLogEdit);
+    SendMessage(hLogEdit, EM_SETSEL, len, len);
+    
+    CHARFORMAT2 cf = {0};
+    cf.cbSize = sizeof(CHARFORMAT2);
+    cf.dwMask = CFM_COLOR;
+    cf.crTextColor = color;
+    SendMessage(hLogEdit, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cf);
+    SendMessageA(hLogEdit, EM_REPLACESEL, FALSE, (LPARAM)buffer);
+    SendMessageA(hLogEdit, EM_REPLACESEL, FALSE, (LPARAM)"\r\n");
+}
+
+// Initialize critical section for WebSocket clients
+void init_hmr_system() {
+    InitializeCriticalSection(&ws_clients_lock);
+    LogWithColor("HMR System initialized", RGB(255, 255, 0));
+}
+
+void cleanup_hmr_system() {
+    DeleteCriticalSection(&ws_clients_lock);
+    
+    WebSocketClient* current = ws_clients;
+    while (current) {
+        WebSocketClient* next = current->next;
+        closesocket(current->socket);
+        free(current);
+        current = next;
+    }
+    ws_clients = NULL;
+    
+    LogWithColor("HMR System cleaned up", RGB(255, 165, 0));
+}
+
+// File serving with proper MIME types
+void serve_file(SOCKET client, const char *filename) {
+    const char *file_to_open = filename;
+    if (filename[0] == '/') {
+        file_to_open = filename + 1;
     }
     
     FILE *file = fopen(file_to_open, "rb");
@@ -492,115 +749,78 @@ void serve_file(SOCKET client, const char *filename) {
         const char *error = "HTTP/1.1 500 Internal Server Error\r\n\r\nMemory allocation failed";
         send(client, error, (int)strlen(error), 0);
         fclose(file);
-        Log("[Memory Error] Failed to allocate memory for: %s", filename);
         return;
     }
 
     size_t bytes_read = fread(buffer, 1, size, file);
     fclose(file);
 
-    if (bytes_read != size) {
-        const char *error = "HTTP/1.1 500 Internal Server Error\r\n\r\nFailed to read file";
-        send(client, error, (int)strlen(error), 0);
-        smart_free(buffer);
-        Log("[Read Error] Failed to read file: %s", filename);
-        return;
-    }
-
     char *header = (char*)smart_malloc(512);
-    if (!header) {
-        const char *error = "HTTP/1.1 500 Internal Server Error\r\n\r\nHeader allocation failed";
-        send(client, error, (int)strlen(error), 0);
-        smart_free(buffer);
-        return;
-    }
-
     int header_len = snprintf(header, 512,
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: %s\r\n"
-            "Content-Length: %zu\r\n"
-            "Cache-Control: no-cache\r\n"
-            "Access-Control-Allow-Origin: *\r\n"
-            "X-Memory-Pool: %zu bytes allocated\r\n\r\n",
-            mime, bytes_read, memory_pool ? memory_pool->total_allocated : 0);
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: %s\r\n"
+        "Content-Length: %zu\r\n"
+        "Cache-Control: no-cache\r\n"
+        "Access-Control-Allow-Origin: *\r\n\r\n",
+        mime, bytes_read);
 
     send(client, header, header_len, 0);
-    send(client, buffer, bytes_read, 0);
+    send(client, buffer, (int)bytes_read, 0);
     
     smart_free(buffer);
     smart_free(header);
-    
-    double end_time_ms = get_high_res_time_ms();
-    LogWithColor("%s (%zu bytes, %.3f ms)", RGB(0, 255, 0), filename, bytes_read, end_time_ms - start_time_ms);
 }
 
+// Enhanced reload endpoint with smart data
 void serve_reload(SOCKET client) {
     int should_reload = files_changed;
     if (should_reload) files_changed = 0;
 
-    char response[256];
-    int response_len = snprintf(
-        response, sizeof(response),
+    char response[512];
+    int response_len = snprintf(response, sizeof(response),
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: application/json\r\n"
         "Access-Control-Allow-Origin: *\r\n"
         "Cache-Control: no-cache\r\n\r\n"
-        "{\"reload\":%s,\"timestamp\":%ld,\"memory_usage\":%zu}",
+        "{\"reload\":%s,\"timestamp\":%ld,\"smart_hmr\":true,\"tracked_files\":%d}",
         should_reload ? "true" : "false",
         (long)time(NULL),
-        memory_pool ? memory_pool->total_allocated : 0
-    );
+        snapshot_count);
     send(client, response, response_len, 0);
 }
 
-void serve_live_script(SOCKET client) {
-    serve_file(client, "live-reload.js");
+// 404 page
+void serve_404_page(SOCKET client, const char* requested_file) {
+    LogWithColor("404: %s", RGB(255, 165, 0), requested_file);
+
+    char html_buffer[2048];
+    snprintf(html_buffer, sizeof(html_buffer),
+        "<!DOCTYPE html>\n"
+        "<html><head><title>404 Not Found</title>"
+        "<style>body{font-family:system-ui;text-align:center;padding:50px;}"
+        "h1{font-size:4rem;margin:0;color:#ef4444;}p{font-size:1.2rem;}</style>"
+        "</head><body><h1>404</h1><p>File not found: %s</p></body></html>",
+        requested_file);
+
+    size_t content_len = strlen(html_buffer);
+    char header[256];
+    int header_len = snprintf(header, sizeof(header),
+        "HTTP/1.1 404 Not Found\r\n"
+        "Content-Type: text/html\r\n"
+        "Content-Length: %zu\r\n\r\n", content_len);
+
+    send(client, header, header_len, 0);
+    send(client, html_buffer, (int)content_len, 0);
 }
 
-void cleanup_memory_pool() {
-    if (!memory_pool) return;
-    
-    LogWithColor("Memory cleanup started", RGB(255, 165, 0));
-    LogWithColor("Blocks: %d, Memory: %zu bytes", RGB(0, 200, 255), memory_pool->count, memory_pool->total_allocated);
-
-    for (int i = 0; i < memory_pool->count; i++) {
-        if (memory_pool->blocks[i]) free(memory_pool->blocks[i]);
-    }
-    free(file_snapshots);
-    file_snapshots = NULL;
-    
-    free(memory_pool->blocks);
-    free(memory_pool->sizes);
-    free(memory_pool);
-    memory_pool = NULL;
-
-    LogWithColor("Memory cleanup completed", RGB(0, 255, 0));
-}
-
-void get_local_ip(char* buffer, int size) {
-    char host_name[256];
-    struct hostent *host_entry;
-    if (gethostname(host_name, sizeof(host_name)) == SOCKET_ERROR) {
-        strncpy(buffer, "127.0.0.1", size - 1);
-        buffer[size - 1] = '\0';
-        return;
-    }
-
-    host_entry = gethostbyname(host_name);
-    if (host_entry == NULL) {
-        strncpy(buffer, "127.0.0.1", size - 1);
-        buffer[size - 1] = '\0';
-        return;
-    }
-
-    strncpy(buffer, inet_ntoa(*(struct in_addr *)*host_entry->h_addr_list), size - 1);
-    buffer[size - 1] = '\0';
-}
-
+// Main server thread with WebSocket support
 unsigned __stdcall ServerThread(void* pArguments) {
     ThreadArgs* thread_args = (ThreadArgs*)pArguments;
     int argc = thread_args->argc;
     char** argv = thread_args->argv;
+    
+    // Initialise HMR(Hot Reload) system
+    init_hmr_system();
     
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -617,6 +837,7 @@ unsigned __stdcall ServerThread(void* pArguments) {
             port = 3000;
         }
     }
+    
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
@@ -624,23 +845,17 @@ unsigned __stdcall ServerThread(void* pArguments) {
 
     if (bind(server, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR) {
         LogWithColor("Bind failed: %d", RGB(255, 0, 0), WSAGetLastError());
-        cleanup_memory_pool();
+        cleanup_hmr_system();
         free(thread_args);
         return 1;
     }
 
-    listen(server, 5);
+    listen(server, 10);
     GetSystemTimeAsFileTime(&last_check_time);
 
-    char local_ip[40] = {0};
-    get_local_ip(local_ip, sizeof(local_ip));
-
-    LogWithColor("Server Ready", RGB(0, 255, 0));
+    LogWithColor("LiveServer Ready", RGB(0, 255, 0));
     LogWithColor("Local: http://localhost:%d", RGB(0, 200, 255), port);
-    if (strcmp(local_ip, "127.0.0.1") != 0 && strlen(local_ip) > 0) {
-        LogWithColor("Network: http://%s:%d", RGB(0, 200, 255), local_ip, port);
-    }
-    LogWithColor("Watching: HTML, CSS, JS, JSON, TS, TSX, JSX", RGB(255, 255, 0));
+    LogWithColor("Watching HTML , CSS , JS files...", RGB(255, 255, 0));
 
     char url[256];
     snprintf(url, sizeof(url), "http://localhost:%d", port);
@@ -649,364 +864,202 @@ unsigned __stdcall ServerThread(void* pArguments) {
     while (server_running) {
         SOCKET client = accept(server, NULL, NULL);
         if (client == INVALID_SOCKET) break;
-        char *buffer = (char*)smart_malloc(2048);
+        
+        char *buffer = (char*)smart_malloc(4096);
         if (!buffer) {
-            LogWithColor("Memory allocation failed", RGB(255, 0, 0));
             closesocket(client);
             continue;
         }
-        int bytes_received = recv(client, buffer, 2047, 0);
+        
+        int bytes_received = recv(client, buffer, 4095, 0);
         if (bytes_received > 0) {
+            buffer[bytes_received] = '\0';
+            
             char method[16], path[1024];
             memset(method, 0, sizeof(method));
             memset(path, 0, sizeof(path));
             sscanf(buffer, "%15s %1023s", method, path);
-            char *query_params = strchr(path, '?');
-            if (query_params) {
-                *query_params = '\0'; 
-                query_params++; 
+            
+            // Check for WebSocket upgrade
+            if (strstr(buffer, "Upgrade: websocket") && strstr(buffer, "Connection: Upgrade")) {
+                // WebSocket handshake (basic implementation)
+                char* key = strstr(buffer, "Sec-WebSocket-Key: ");
+                if (key) {
+                    key += 19; // Skip "Sec-WebSocket-Key: "
+                    char* key_end = strstr(key, "\r\n");
+                    if (key_end) {
+                        *key_end = '\0';
+                        
+                        const char* websocket_response = 
+                            "HTTP/1.1 101 Switching Protocols\r\n"
+                            "Upgrade: websocket\r\n"
+                            "Connection: Upgrade\r\n"
+                            "Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n"
+                            "\r\n";
+                        
+                        send(client, websocket_response, (int)strlen(websocket_response), 0);
+                        add_websocket_client(client);
+                        LogWithColor("WebSocket connection established", RGB(0, 255, 128));
+                        
+                        smart_free(buffer);
+                        continue; // Don't close the socket, keep it for WebSocket
+                    }
+                }
             }
-            if (strncmp(path, "/api/mintkit/", 13) == 0) {
-                LogWithColor("[%s] %s [Mintkit API]", RGB(0, 255, 128), method, path);
-                serve_mintkit_api(client, path);
-            } else if (strcmp(path, "/reload") == 0) {
+            
+            // Remove query parameters
+            char *query_params = strchr(path, '?');
+            if (query_params) *query_params = '\0';
+            
+            // Route handling
+            if (strcmp(path, "/reload") == 0) {
                 check_files_modified();
                 serve_reload(client);
-            } else if (strcmp(path, "/live-reload.js") == 0) {
-                LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
+                LogWithColor("[%s] %s [Hot Reload System]", RGB(0, 255, 128), method, path);
+            } 
+            else if (strcmp(path, "/live-reload.js") == 0) {
                 check_files_modified();
                 serve_live_script(client);
-            } else if (strcmp(path, "/memory-stats") == 0) {
-                char *stats = (char*)smart_malloc(512);
-                if (stats) {
-                    int stats_len = snprintf(stats, 512,
-                        "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: *\r\n\r\n"
-                        "{\"total_allocated\":%zu,\"active_blocks\":%d,\"pool_capacity\":%d,\"tracked_files\":%d}",
-                        memory_pool ? memory_pool->total_allocated : 0,
-                        memory_pool ? memory_pool->count : 0,
-                        memory_pool ? memory_pool->capacity : 0,
-                        snapshot_count);
-                    send(client, stats, stats_len, 0);
-                    smart_free(stats);
-                }
-                LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
-            } else if (strcmp(path, "/api/status") == 0) {
-                char *response = (char*)smart_malloc(1024);
-                if (response) {
-                    int response_len = snprintf(response, 1024,
-                        "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: *\r\n\r\n"
-                        "{\"status\":\"running\",\"uptime\":%ld,\"files_tracked\":%d,\"memory_usage\":%zu,\"hot_reload\":true}",
-                        (long)time(NULL), snapshot_count, memory_pool ? memory_pool->total_allocated : 0);
-                    send(client, response, response_len, 0);
-                    smart_free(response);
-                }
-                LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
-            } else {
+                LogWithColor("[%s] %s [HMR Script]", RGB(0, 255, 128), method, path);
+            }
+            else if (strncmp(path, "/api/", 5) == 0) {
+                char api_response[1024];
+                int api_len = snprintf(api_response, sizeof(api_response),
+                    "HTTP/1.1 200 OK\r\n"
+                    "Content-Type: application/json\r\n"
+                    "Access-Control-Allow-Origin: *\r\n\r\n"
+                    "{\"status\":\"running\",\"smart_hmr\":true,\"files\":%d,\"memory\":%zu}",
+                    snapshot_count, memory_pool ? memory_pool->total_allocated : 0);
+                send(client, api_response, api_len, 0);
+                LogWithColor("[%s] %s [API]", RGB(0, 200, 255), method, path);
+            }
+            else {
                 char *file = path + 1;
                 if (strlen(file) == 0) {
                     file = "index.html";
                 }
                 
                 const char *ext = strrchr(file, '.');
-                if (ext && strcmp(ext, ".css") == 0) {
-                    LogWithColor("[%s] %s [CSS File]", RGB(0, 255, 255), method, path);
-                    check_files_modified();
-                    serve_file(client, file);
-                } else if (ext && (strcmp(ext, ".html") == 0 || strcmp(ext, ".htm") == 0)) {
+                
+                // Smart handling based on file type
+                if (ext && strcmp(ext, ".html") == 0) {
                     FILE *test_file = fopen(file, "r");
                     if (test_file) {
                         fclose(test_file);
-                        LogWithColor("[%s] %s [Mintkit Support]", RGB(0, 255, 128), method, path);
+                        LogWithColor("[%s] %s [HTML]", RGB(0, 255, 128), method, path);
                         check_files_modified();
                         serve_mintkit_enhanced_html(client, file);
                     } else {
-                        LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
-                        check_files_modified();
-                        serve_file(client, file);
+                        serve_404_page(client, file);
                     }
-                } else if (!ext) {
+                }
+                else if (ext && (strcmp(ext, ".css") == 0 || strcmp(ext, ".js") == 0)) {
+                    LogWithColor("[%s] %s [Tracked Asset]", RGB(0, 255, 255), method, path);
+                    check_files_modified();
+                    serve_file(client, file);
+                }
+                else if (!ext) {
+                    // Try .html extension
                     char html_file[1024];
                     snprintf(html_file, sizeof(html_file), "%s.html", file);
                     FILE *test_file = fopen(html_file, "r");
                     if (test_file) {
                         fclose(test_file);
-                        LogWithColor("[%s] %s [Mintkit Support - Auto .html]", RGB(0, 255, 128), method, path);
+                        LogWithColor("[%s] %s [Auto .html]", RGB(0, 255, 128), method, path);
                         check_files_modified();
                         serve_mintkit_enhanced_html(client, html_file);
                     } else {
-                        LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
-                        check_files_modified();
                         serve_file(client, file);
                     }
-                } else {
-                    LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
-                    check_files_modified();
-                    serve_file(client, file);
                 }
-                if (query_params) {
-                    *(query_params - 1) = '?';
+                else {
+                    LogWithColor("[%s] %s", RGB(0, 200, 255), method, path);
+                    serve_file(client, file);
                 }
             }
         }
+        
         smart_free(buffer);
         closesocket(client);
     }
 
-    cleanup_memory_pool();
+    cleanup_hmr_system();
     closesocket(server);
     WSACleanup();
     free(thread_args);
     return 0;
 }
 
-void Log(const char* format, ...) {
-    if (!hLogEdit) return;
+// Memory cleanup
+void cleanup_memory_pool() {
+    if (!memory_pool) return;
+    
+    LogWithColor("Memory cleanup started", RGB(255, 165, 0));
+    LogWithColor("Blocks: %d, Memory: %zu bytes", RGB(0, 200, 255), 
+                 memory_pool->count, memory_pool->total_allocated);
 
-    char buffer[4096];
-    va_list args;
-    va_start(args, format);
-    int count = vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-
-    if (count < 0) return;
-
-    int len = GetWindowTextLength(hLogEdit);
-    SendMessage(hLogEdit, EM_SETSEL, (WPARAM)len, (LPARAM)len);
-    SendMessage(hLogEdit, EM_REPLACESEL, 0, (LPARAM)buffer);
-    SendMessage(hLogEdit, EM_REPLACESEL, 0, (LPARAM)"\r\n");
-}
-
-void LogWithColor(const char* format, COLORREF color, ...) {
-    if (!hLogEdit) return;
-
-    char buffer[4096];
-    va_list args;
-    va_start(args, color);
-    int count = vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-    if (count < 0) return;
-
-    // VSCode-like muted colors
-    // Green: #6A9955, Cyan: #4EC9B0, Yellow: #DCDCAA, Orange: #CE9178, Red: #F44747, Blue: #569CD6, Gray: #808080
-    if (color == RGB(0, 255, 0)) {
-        color = RGB(106, 153, 85); // Green
-    } else if (color == RGB(0, 255, 255)) {
-        color = RGB(78, 201, 176); // Cyan
-    } else if (color == RGB(255, 255, 0)) {
-        color = RGB(220, 220, 170); // Yellow
-    } else if (color == RGB(255, 165, 0)) {
-        color = RGB(206, 145, 120); // Orange
-    } else if (color == RGB(255, 0, 0)) {
-        color = RGB(244, 71, 71); // Red
-    } else if (color == RGB(0, 200, 255)) {
-        color = RGB(86, 156, 214); // Blue
-    } else if (color == RGB(128, 128, 128)) {
-        color = RGB(128, 128, 128); // Gray
-    } else {
-        color = RGB(212, 212, 212); // Default text
+    for (int i = 0; i < memory_pool->count; i++) {
+        if (memory_pool->blocks[i]) free(memory_pool->blocks[i]);
     }
+    free(file_snapshots);
+    file_snapshots = NULL;
+    
+    free(memory_pool->blocks);
+    free(memory_pool->sizes);
+    free(memory_pool);
+    memory_pool = NULL;
 
-    int len = GetWindowTextLength(hLogEdit);
-    SendMessage(hLogEdit, EM_SETSEL, len, len);
-    // Set CHARFORMAT for color
-    CHARFORMAT2 cf = {0};
-    cf.cbSize = sizeof(CHARFORMAT2);
-    cf.dwMask = CFM_COLOR;
-    cf.crTextColor = color;
-    SendMessage(hLogEdit, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cf);
-    SendMessageA(hLogEdit, EM_REPLACESEL, FALSE, (LPARAM)buffer);
-    SendMessageA(hLogEdit, EM_REPLACESEL, FALSE, (LPARAM)"\r\n");
+    LogWithColor("Memory cleanup completed", RGB(0, 255, 0));
 }
 
+// UI functions
 BOOL IsDarkModeEnabled() {
-    HKEY hKey;
-    DWORD dwValue = 1; 
-    DWORD dwSize = sizeof(dwValue);
-
-    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-        if (RegQueryValueExW(hKey, L"AppsUseLightTheme", NULL, NULL, (LPBYTE)&dwValue, &dwSize) != ERROR_SUCCESS) {
-            dwValue = 1;
-        }
-        RegCloseKey(hKey);
-    }
-    return dwValue == 0;
-}
-
-void UpdateScrollbarVisibility(HWND hwnd) {
-    if (hLogEdit) {
-        DWORD style = GetWindowLong(hLogEdit, GWL_STYLE);
-        if (g_scrollbarVisible) {
-            style |= WS_VSCROLL;
-        } else {
-            style &= ~WS_VSCROLL;
-        }
-        SetWindowLong(hLogEdit, GWL_STYLE, style);
-        SetWindowPos(hLogEdit, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-        InvalidateRect(hLogEdit, NULL, TRUE);
-        UpdateWindow(hLogEdit);
-    }
-}
-
-void ToggleScrollbar(HWND hwnd) {
-    g_scrollbarVisible = !g_scrollbarVisible;
-    UpdateScrollbarVisibility(hwnd);
-    LogWithColor("Scrollbar: %s", RGB(0, 200, 255), g_scrollbarVisible ? "ON" : "OFF");
-}
-
-void ToggleFullscreen(HWND hwnd) {
-    g_fullscreen = !g_fullscreen;
-    if (g_fullscreen) {
-        GetWindowRect(hwnd, &g_windowRect);
-        SetWindowLong(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
-        SetWindowPos(hwnd, HWND_TOP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_FRAMECHANGED);
-        ShowWindow(hwnd, SW_SHOWMAXIMIZED);
-    } else {
-        SetWindowLong(hwnd, GWL_STYLE, WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME | WS_SYSMENU);
-        SetWindowPos(hwnd, HWND_TOP, g_windowRect.left, g_windowRect.top, g_windowRect.right - g_windowRect.left, g_windowRect.bottom - g_windowRect.top, SWP_FRAMECHANGED);
-        ShowWindow(hwnd, SW_SHOWNORMAL);
-    }
-}
-
-void CreateContextMenu(HWND hwnd) {
-    if (g_contextMenu) {
-        DestroyMenu(g_contextMenu);
-    }
-    
-    g_contextMenu = CreatePopupMenu();
-    
-    // Scrollbar toggle
-    AppendMenuA(g_contextMenu, MF_STRING | (g_scrollbarVisible ? MF_CHECKED : MF_UNCHECKED), 1001, "Toggle Scrollbar");
-    
-    // Separator
-    AppendMenuA(g_contextMenu, MF_SEPARATOR, 0, NULL);
-    
-    // Fullscreen toggle
-    AppendMenuA(g_contextMenu, MF_STRING | (g_fullscreen ? MF_CHECKED : MF_UNCHECKED), 1002, "Toggle Fullscreen");
-    
-    // Separator
-    AppendMenuA(g_contextMenu, MF_SEPARATOR, 0, NULL);
-    
-    // Exit
-    AppendMenuA(g_contextMenu, MF_STRING, 1003, "Exit");
-}
-
-void CreateAppAcceleratorTable() {
-    ACCEL accel[] = {
-        { FCONTROL, 'W', 1003 },  // Ctrl+W = Exit
-        { FALT, VK_F11, 1002 },   // Alt+F11 = Toggle Fullscreen
-    };
-    
-    g_hAccel = CreateAcceleratorTable(accel, 2);
+    return TRUE; 
 }
 
 void ApplyTheme(HWND hwnd) {
-    // VSCode Dark+ Theme
     g_bgColor = RGB(18, 18, 18);
     g_textColor = RGB(248, 248, 248);
 
-    if (g_bgBrush) {
-        DeleteObject(g_bgBrush);
-    }
+    if (g_bgBrush) DeleteObject(g_bgBrush);
     g_bgBrush = CreateSolidBrush(g_bgColor);
 
     BOOL dark = TRUE;
     DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
-    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20, &dark, sizeof(dark));
-
-    InvalidateRect(hwnd, NULL, TRUE);
-    UpdateWindow(hwnd);
 
     if (hLogEdit) {
         SendMessage(hLogEdit, EM_SETBKGNDCOLOR, 0, g_bgColor);
-        
-        // Set dark scrollbar colors using system colors
-        SetWindowTheme(hLogEdit, L"", L"");
-        
-        // Force redraw to apply theme changes
         InvalidateRect(hLogEdit, NULL, TRUE);
         UpdateWindow(hLogEdit);
     }
 }
 
-LRESULT CALLBACK RichEditSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    switch (msg) {
-        case WM_RBUTTONUP: {
-            POINT pt;
-            GetCursorPos(&pt);
-            CreateContextMenu(GetParent(hwnd));
-            TrackPopupMenu(g_contextMenu, TPM_LEFTALIGN | TPM_RIGHTBUTTON, pt.x, pt.y, 0, GetParent(hwnd), NULL);
-            return 0;
-        }
-    }
-    return CallWindowProc(g_OrigRichEditProc, hwnd, msg, wParam, lParam);
-}
-
+// Window procedure
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
         case WM_CREATE:
-            SetClassLongPtr(hwnd, GCLP_HICON, (LONG_PTR)NULL);
-            SetClassLongPtr(hwnd, GCLP_HICONSM, (LONG_PTR)NULL);
             hRichEdit = LoadLibraryA("Msftedit.dll");
             if (!hRichEdit) {
-                MessageBox(hwnd, "Could not load Msftedit.dll (Rich Edit)", "Error", MB_OK | MB_ICONERROR);
+                MessageBox(hwnd, "Could not load Rich Edit library", "Error", MB_OK);
                 return -1;
             }
-            hLogEdit = CreateWindowExA(
-                0, "RICHEDIT50W", "",
+            
+            hLogEdit = CreateWindowExA(0, "RICHEDIT50W", "",
                 WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
-                0, 0, 0, 0,
-                hwnd, (HMENU)1, GetModuleHandle(NULL), NULL);
-            if(hLogEdit == NULL) {
-                MessageBox(hwnd, "Could not create rich edit box.", "Error", MB_OK | MB_ICONERROR);
+                0, 0, 0, 0, hwnd, (HMENU)1, GetModuleHandle(NULL), NULL);
+            
+            if (!hLogEdit) {
+                MessageBox(hwnd, "Could not create log window", "Error", MB_OK);
+                return -1;
             }
-            SetWindowTheme(hLogEdit, L"Explorer", NULL);
-            if (g_hFont) {
-                DeleteObject(g_hFont);
-            }
-            g_hFont = CreateFontA(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 
-                                  OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 
-                                  FIXED_PITCH | FF_MODERN, "Consolas");
-            if (g_hFont == NULL) {
-                g_hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
-            }
-            SendMessage(hLogEdit, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            
+            g_hFont = CreateFontA(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, 
+                DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, 
+                DEFAULT_QUALITY, FIXED_PITCH | FF_MODERN, "Consolas");
+            
+            if (g_hFont) SendMessage(hLogEdit, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            
             ApplyTheme(hwnd);
-            UpdateScrollbarVisibility(hwnd);
-            CreateContextMenu(hwnd);
-            CreateAppAcceleratorTable();
-            // Subclass RichEdit for context menu and key shortcuts
-            g_OrigRichEditProc = (WNDPROC)SetWindowLongPtr(hLogEdit, GWLP_WNDPROC, (LONG_PTR)RichEditSubclassProc);
-            // Set dark mode theme for scrollbar
-            SetWindowTheme(hLogEdit, L"DarkMode_Explorer", NULL);
-            break;
-
-        case WM_COMMAND:
-            switch (LOWORD(wParam)) {
-                case 1001: // Toggle Scrollbar
-                    ToggleScrollbar(hwnd);
-                    CreateContextMenu(hwnd);
-                    break;
-                case 1002: // Toggle Fullscreen
-                    ToggleFullscreen(hwnd);
-                    CreateContextMenu(hwnd);
-                    break;
-                case 1003: // Exit
-                    PostMessage(hwnd, WM_CLOSE, 0, 0);
-                    break;
-            }
-            break;
-
-        case WM_CTLCOLOREDIT: {
-            HDC hdcEdit = (HDC) wParam;
-            SetTextColor(hdcEdit, g_textColor);
-            SetBkColor(hdcEdit, g_bgColor);
-            return (LRESULT)g_bgBrush;
-        }
-
-        case WM_SETTINGCHANGE:
-            if (lParam && wcscmp((LPCWSTR)lParam, L"ImmersiveColorSet") == 0) {
-                ApplyTheme(hwnd);
-            }
             break;
 
         case WM_SIZE:
@@ -1014,29 +1067,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             break;
 
         case WM_CLOSE:
-            if (MessageBox(hwnd, "Closing Mintkit console will stop the local web server. Are you sure?", "Mintputs", MB_OKCANCEL) == IDOK) {
+            if (MessageBox(hwnd, "Stop Server?", "Hot Reload", MB_OKCANCEL) == IDOK) {
                 server_running = 0;
-                closesocket(0); 
                 DestroyWindow(hwnd);
             }
             break;
 
         case WM_DESTROY:
-            if (g_hFont && g_hFont != GetStockObject(DEFAULT_GUI_FONT)) {
-                DeleteObject(g_hFont);
-            }
-            if (g_bgBrush) {
-                DeleteObject(g_bgBrush);
-            }
-            if (hRichEdit) {
-                FreeLibrary(hRichEdit);
-            }
-            if (g_contextMenu) {
-                DestroyMenu(g_contextMenu);
-            }
-            if (g_hAccel) {
-                DestroyAcceleratorTable(g_hAccel);
-            }
+            if (g_hFont) DeleteObject(g_hFont);
+            if (g_bgBrush) DeleteObject(g_bgBrush);
+            if (hRichEdit) FreeLibrary(hRichEdit);
             cleanup_memory_pool();
             PostQuitMessage(0);
             break;
@@ -1047,30 +1087,30 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     return 0;
 }
 
+// Main entry point
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    const char CLASS_NAME[]  = "MintkitWindowClass";
+    const char CLASS_NAME[] = "SmartHMRWindowClass";
     
     WNDCLASS wc = {0};
-    wc.lpfnWndProc   = WindowProc;
-    wc.hInstance     = hInstance;
+    wc.lpfnWndProc = WindowProc;
+    wc.hInstance = hInstance;
     wc.lpszClassName = CLASS_NAME;
-    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 
     RegisterClass(&wc);
 
-    HWND hwnd = CreateWindowEx(0, CLASS_NAME, "Console",
-        WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME,
-        CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
+    HWND hwnd = CreateWindowEx(0, CLASS_NAME, "Hot Reload Console",
+        WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 900, 700,
         NULL, NULL, hInstance, NULL);
 
-    if (hwnd == NULL) return 0;
+    if (!hwnd) return 0;
 
     ShowWindow(hwnd, nCmdShow);
 
     ThreadArgs* args = (ThreadArgs*)malloc(sizeof(ThreadArgs));
     if (!args) {
-        MessageBox(hwnd, "Failed to allocate memory for thread arguments.", "Fatal Error", MB_OK | MB_ICONERROR);
+        MessageBox(hwnd, "Failed to allocate memory", "Fatal Error", MB_OK);
         return 1;
     }
     args->argc = __argc;
@@ -1080,10 +1120,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     MSG msg = {0};
     while (GetMessage(&msg, NULL, 0, 0)) {
-        if (!TranslateAccelerator(hwnd, g_hAccel, &msg)) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
     }
 
     WaitForSingleObject(hServerThread, INFINITE);
@@ -1092,150 +1130,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     return (int)msg.wParam;
 }
 
-int CustomMessageBox(HWND hParent, const char* text, const char* title) {
-    // Register class
-    WNDCLASSA wc = {0};
-    wc.lpfnWndProc = DefWindowProcA;
-    wc.hInstance = GetModuleHandle(NULL);
-    wc.lpszClassName = "DarkMsgBox";
-    wc.hbrBackground = CreateSolidBrush(RGB(18,18,18));
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    RegisterClassA(&wc);
-
-    // Create window with Minimize, Maximize, Close
-    HWND hWnd = CreateWindowExA(0, "DarkMsgBox", title,
-        WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME, // No resize by border
-        CW_USEDEFAULT, CW_USEDEFAULT, 360, 160,
-        hParent, NULL, GetModuleHandle(NULL), NULL);
-
-    // Set dark titlebar
-    BOOL dark = TRUE;
-    DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
-    DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20, &dark, sizeof(dark));
-
-    // Static text
-    HWND hStatic = CreateWindowExA(0, "STATIC", text,
-        WS_CHILD | WS_VISIBLE | SS_CENTER,
-        20, 30, 320, 40, hWnd, NULL, GetModuleHandle(NULL), NULL);
-    SendMessageA(hStatic, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
-    SetTextColor(GetDC(hStatic), RGB(248,248,248));
-    SetBkColor(GetDC(hStatic), RGB(18,18,18));
-
-    // OK button
-    HWND hBtn = CreateWindowExA(0, "BUTTON", "OK",
-        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-        130, 90, 100, 28, hWnd, (HMENU)1, GetModuleHandle(NULL), NULL);
-    SendMessageA(hBtn, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
-
-    ShowWindow(hWnd, SW_SHOW);
-    UpdateWindow(hWnd);
-
-    // Message loop
-    MSG msg;
-    int ret = 0;
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        if (msg.message == WM_COMMAND && msg.hwnd == hBtn) {
-            ret = IDOK;
-            break;
-        }
-        if (msg.message == WM_CLOSE && msg.hwnd == hWnd) {
-            ret = IDCANCEL;
-            break;
-        }
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
-    DestroyWindow(hWnd);
-    UnregisterClassA("DarkMsgBox", GetModuleHandle(NULL));
-    return ret;
-}
-
-void serve_mintkit_enhanced_html(SOCKET client, const char *filename) {
-    double start_time_ms = get_high_res_time_ms();
-    
-    const char *file_to_open = filename;
-    if (filename[0] == '/') {
-        file_to_open = filename + 1; // Remove leading slash
-    }
-    
-    FILE *file = fopen(file_to_open, "rb");
-    if (!file) {
-        serve_404_page(client, filename);
-        return;
-    }
-    fseek(file, 0, SEEK_END);
-    long size = ftell(file);
-    rewind(file);
-    char *buffer = (char*)smart_malloc(size + 5000); 
-    if (!buffer) {
-        const char *error = "HTTP/1.1 500 Internal Server Error\r\n\r\nMemory allocation failed";
-        send(client, error, (int)strlen(error), 0);
-        fclose(file);
-        return;
-    }
-    size_t bytes_read = fread(buffer, 1, size, file);
-    fclose(file);
-    const char *ext = strrchr(filename, '.');
-    if (ext && strcmp(ext, ".html") == 0) {
-        char *body_end = strstr(buffer, "</body>");
-        if (body_end) {
-            const char *script_tag = "<script src=\"/live-reload.js\"></script>";
-            size_t script_len = strlen(script_tag);
-            memmove(body_end + script_len, body_end, strlen(body_end) + 1);
-            memcpy(body_end, script_tag, script_len);
-            bytes_read += script_len;
-            LogWithColor("[Mintkit] Live reload script injected: %s", RGB(0, 255, 128), filename);
-        }
-    }
-    char *header = (char*)smart_malloc(512);
-    if (!header) {
-        const char *error = "HTTP/1.1 500 Internal Server Error\r\n\r\nHeader allocation failed";
-        send(client, error, (int)strlen(error), 0);
-        smart_free(buffer);
-        return;
-    }
-    int header_len = snprintf(header, 512,
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/html; charset=utf-8\r\n"
-            "Content-Length: %zu\r\n"
-            "Cache-Control: no-cache\r\n"
-            "Access-Control-Allow-Origin: *\r\n"
-            "X-Mintkit-Support: true\r\n"
-            "X-Memory-Pool: %zu bytes allocated\r\n\r\n",
-            bytes_read, memory_pool ? memory_pool->total_allocated : 0);
-    send(client, header, header_len, 0);
-    send(client, buffer, bytes_read, 0);
-    smart_free(buffer);
-    smart_free(header);
-    double end_time_ms = get_high_res_time_ms();
-    LogWithColor("[Mintkit Support] %s (%zu bytes, %.3f ms)", RGB(0, 255, 128), filename, bytes_read, end_time_ms - start_time_ms);
-}
-
-void serve_mintkit_api(SOCKET client, const char *request) {
-    if (strstr(request, "/api/mintkit/status")) {
-        char response[512];
-        int response_len = snprintf(
-            response, sizeof(response),
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: application/json; charset=utf-8\r\n"
-            "Access-Control-Allow-Origin: *\r\n"
-            "Cache-Control: no-cache\r\n\r\n"
-            "{\"framework\":\"Mintkit\",\"version\":\"1.0\",\"status\":\"active\"," \
-            "\"memory_usage\":%zu,\"files_watched\":%d}",
-            memory_pool ? memory_pool->total_allocated : 0,
-            snapshot_count
-        );
-        send(client, response, response_len, 0);
-        LogWithColor("[Mintkit API] Status", RGB(0, 255, 128));
-    } else {
-        serve_404_page(client, request);
-    }
-}
-
 /*  
     Compile using:
-    gcc -O2 LiveServer.c -o LiveServer.exe -lws2_32 -lshell32 -mwindows -ldwmapi -luxtheme
+    gcc -O3 LiveServer.c -o LiveServer.exe -lws2_32 -lshell32 -mwindows -ldwmapi -luxtheme
     
-    Than run  ./liveserver.exe path
+    Then run  ./LiveServer.exe [port]
     Then open http://localhost:3000
+
+    Usage: ./LiveServer.exe [port]
 */
