@@ -17,6 +17,7 @@
 #include <string_view>
 #include <array>
 #include <queue>
+#include <list>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -38,75 +39,133 @@
 
 namespace fs = std::filesystem;
 
+// Improved memory pool with better tracking and cleanup
 class MemoryPool {
 private:
-    static constexpr size_t POOL_SIZE = 1024 * 1024; // 1MB
-    static constexpr size_t BLOCK_SIZE = 4096;
+    static constexpr size_t POOL_SIZE = 2 * 1024 * 1024; // 2MB pool
+    static constexpr size_t BLOCK_SIZE = 8192; // Larger blocks for better performance
+    static constexpr size_t MAX_BLOCKS = POOL_SIZE / BLOCK_SIZE;
     
-    std::vector<std::array<char, BLOCK_SIZE>> blocks;
-    std::vector<bool> used;
+    struct Block {
+        std::array<char, BLOCK_SIZE> data;
+        std::atomic<bool> inUse{false};
+        std::chrono::steady_clock::time_point lastUsed;
+    };
+    
+    std::vector<std::unique_ptr<Block>> blocks;
     std::mutex poolMutex;
+    std::atomic<size_t> activeBlocks{0};
+    std::atomic<size_t> totalAllocations{0};
     
 public:
     MemoryPool() {
-        size_t numBlocks = POOL_SIZE / BLOCK_SIZE;
-        blocks.reserve(numBlocks);
-        used.reserve(numBlocks);
-        
-        for (size_t i = 0; i < numBlocks; ++i) {
-            blocks.emplace_back();
-            used.push_back(false);
+        blocks.reserve(MAX_BLOCKS);
+        for (size_t i = 0; i < MAX_BLOCKS; ++i) {
+            blocks.push_back(std::make_unique<Block>());
         }
     }
     
     char* acquire() {
         std::lock_guard<std::mutex> lock(poolMutex);
-        for (size_t i = 0; i < used.size(); ++i) {
-            if (!used[i]) {
-                used[i] = true;
-                return blocks[i].data();
+        
+        // Find available block
+        for (auto& block : blocks) {
+            bool expected = false;
+            if (block->inUse.compare_exchange_strong(expected, true)) {
+                block->lastUsed = std::chrono::steady_clock::now();
+                activeBlocks++;
+                totalAllocations++;
+                return block->data.data();
             }
         }
-        return nullptr;
+        
+        // Pool exhausted - try emergency cleanup
+        cleanupStaleBlocks();
+        
+        // Try once more after cleanup
+        for (auto& block : blocks) {
+            bool expected = false;
+            if (block->inUse.compare_exchange_strong(expected, true)) {
+                block->lastUsed = std::chrono::steady_clock::now();
+                activeBlocks++;
+                totalAllocations++;
+                return block->data.data();
+            }
+        }
+        
+        return nullptr; // Pool truly exhausted
     }
     
     void release(char* ptr) {
+        if (!ptr) return;
+        
         std::lock_guard<std::mutex> lock(poolMutex);
-        for (size_t i = 0; i < blocks.size(); ++i) {
-            if (blocks[i].data() == ptr) {
-                used[i] = false;
+        for (auto& block : blocks) {
+            if (block->data.data() == ptr) {
+                block->inUse = false;
+                activeBlocks--;
                 return;
             }
         }
     }
+    
+    void cleanupStaleBlocks() {
+        auto now = std::chrono::steady_clock::now();
+        constexpr auto STALE_TIME = std::chrono::seconds(30);
+        
+        for (auto& block : blocks) {
+            if (block->inUse.load() && 
+                (now - block->lastUsed) > STALE_TIME) {
+                // Force release stale blocks (potential leak recovery)
+                block->inUse = false;
+                activeBlocks--;
+            }
+        }
+    }
+    
+    size_t getActiveBlocks() const { return activeBlocks.load(); }
+    size_t getTotalAllocations() const { return totalAllocations.load(); }
+    double getUtilization() const { 
+        return static_cast<double>(activeBlocks.load()) / MAX_BLOCKS * 100.0; 
+    }
 };
 
+// RAII buffer wrapper with automatic cleanup
 class PooledBuffer {
 private:
     MemoryPool& pool;
     char* buffer;
     
 public:
-    PooledBuffer(MemoryPool& p) : pool(p), buffer(p.acquire()) {}
-    ~PooledBuffer() { if (buffer) pool.release(buffer); }
+    explicit PooledBuffer(MemoryPool& p) : pool(p), buffer(p.acquire()) {}
+    
+    ~PooledBuffer() { 
+        if (buffer) {
+            pool.release(buffer); 
+        }
+    }
     
     char* get() const { return buffer; }
     bool valid() const { return buffer != nullptr; }
+    size_t size() const { return 8192; } // BLOCK_SIZE
     
+    // Prevent copying
     PooledBuffer(const PooledBuffer&) = delete;
     PooledBuffer& operator=(const PooledBuffer&) = delete;
     
+    // Allow moving
     PooledBuffer(PooledBuffer&& other) noexcept 
         : pool(other.pool), buffer(other.buffer) {
         other.buffer = nullptr;
     }
 };
 
+// Improved rate limiter with sliding window
 class RateLimiter {
 private:
     std::queue<std::chrono::steady_clock::time_point> requests;
     std::mutex limiterMutex;
-    static constexpr size_t MAX_REQUESTS = 10;
+    static constexpr size_t MAX_REQUESTS = 15; // Slightly more permissive
     static constexpr std::chrono::seconds TIME_WINDOW{5};
     
 public:
@@ -114,6 +173,7 @@ public:
         std::lock_guard<std::mutex> lock(limiterMutex);
         auto now = std::chrono::steady_clock::now();
         
+        // Remove old requests outside time window
         while (!requests.empty() && 
                (now - requests.front()) > TIME_WINDOW) {
             requests.pop();
@@ -126,8 +186,13 @@ public:
         requests.push(now);
         return true;
     }
+    
+    size_t getCurrentRequests() const {
+        return requests.size();
+    }
 };
 
+// Enhanced socket with better error handling and cleanup
 class Socket {
 private:
 #ifdef _WIN32
@@ -163,17 +228,24 @@ public:
 #ifdef _WIN32
         sock = socket(AF_INET, SOCK_STREAM, 0);
         valid = (sock != INVALID_SOCKET);
+        
+        if (valid) {
+            DWORD timeout = 3000; // 3 seconds
+            setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
+            setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout));
+        }
 #else
         sock = socket(AF_INET, SOCK_STREAM, 0);
         valid = (sock >= 0);
         
         if (valid) {
+            // Set non-blocking mode
             int flags = fcntl(sock, F_GETFL, 0);
             fcntl(sock, F_SETFL, flags | O_NONBLOCK);
             
-            // Set socket timeout
+            // Set socket timeouts
             struct timeval timeout;
-            timeout.tv_sec = 5;
+            timeout.tv_sec = 3;
             timeout.tv_usec = 0;
             setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
             setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
@@ -195,9 +267,6 @@ public:
         
 #ifdef _WIN32
         setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char*)&opt, sizeof(opt));
-        DWORD timeout = 5000; // 5 seconds
-        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
-        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout));
 #else
         setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
 #endif
@@ -205,7 +274,7 @@ public:
         return ::bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == 0;
     }
     
-    bool listen(int backlog = 128) {
+    bool listen(int backlog = 64) { // Reduced backlog to prevent resource exhaustion
         if (!valid) return false;
         return ::listen(sock, backlog) == 0;
     }
@@ -225,10 +294,11 @@ public:
     }
     
     bool send(std::string_view data) {
-        if (!valid) return false;
+        if (!valid || data.empty()) return false;
+        
         size_t sent = 0;
         int retries = 0;
-        const int MAX_RETRIES = 3;
+        const int MAX_RETRIES = 2; // Reduced retries to fail faster
         
         while (sent < data.size() && retries < MAX_RETRIES) {
             int result = ::send(sock, data.data() + sent, data.size() - sent, 0);
@@ -240,7 +310,7 @@ public:
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
 #endif
                     retries++;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
                     continue;
                 } else {
                     return false;
@@ -260,8 +330,10 @@ public:
     void close() {
         if (valid) {
 #ifdef _WIN32
+            shutdown(sock, SD_BOTH);
             closesocket(sock);
 #else
+            shutdown(sock, SHUT_RDWR);
             ::close(sock);
 #endif
             valid = false;
@@ -293,80 +365,167 @@ public:
     void error(std::string_view message) { log(std::string("ERROR: ") + std::string(message)); }
 };
 
+// Improved file cache with LRU eviction and better memory management
 class FileCache {
 private:
     struct CacheEntry {
         std::string content;
         fs::file_time_type lastModified;
         size_t size;
+        std::chrono::steady_clock::time_point lastAccessed;
+        
+        CacheEntry(std::string c, fs::file_time_type mod, size_t s) 
+            : content(std::move(c)), lastModified(mod), size(s), 
+              lastAccessed(std::chrono::steady_clock::now()) {}
     };
     
-    std::unordered_map<std::string, CacheEntry> cache;
+    std::unordered_map<std::string, std::unique_ptr<CacheEntry>> cache;
     std::mutex cacheMutex;
-    static constexpr size_t MAX_CACHE_SIZE = 50 * 1024 * 1024; // 50MB
-    size_t currentCacheSize = 0;
+    
+    // Reduced cache limits to prevent memory issues
+    static constexpr size_t MAX_CACHE_SIZE = 20 * 1024 * 1024; // 20MB max
+    static constexpr size_t MAX_FILE_SIZE = 5 * 1024 * 1024;   // 5MB per file max
+    static constexpr size_t MAX_CACHE_ENTRIES = 100;           // Max 100 files cached
+    
+    std::atomic<size_t> currentCacheSize{0};
     
 public:
     std::string getFile(const std::string& filename) {
         std::lock_guard<std::mutex> lock(cacheMutex);
         
-        if (!fs::exists(filename)) {
+        try {
+            if (!fs::exists(filename)) {
+                return "";
+            }
+            
+            // Check file size before reading
+            auto fileSize = fs::file_size(filename);
+            if (fileSize > MAX_FILE_SIZE) {
+                // Don't cache large files, read directly
+                return readFileDirect(filename);
+            }
+            
+            auto lastWrite = fs::last_write_time(filename);
+            
+            auto it = cache.find(filename);
+            if (it != cache.end() && it->second->lastModified == lastWrite) {
+                // Update access time for LRU
+                it->second->lastAccessed = std::chrono::steady_clock::now();
+                return it->second->content;
+            }
+            
+            // Read file content
+            std::string content = readFileDirect(filename);
+            if (content.empty()) return "";
+            
+            // Ensure cache doesn't exceed limits
+            ensureCacheSpace(content.size());
+            
+            // Add to cache
+            auto entry = std::make_unique<CacheEntry>(content, lastWrite, content.size());
+            currentCacheSize += content.size();
+            cache[filename] = std::move(entry);
+            
+            return content;
+            
+        } catch (const std::exception&) {
+            // File system error - return empty
             return "";
         }
-        
-        auto lastWrite = fs::last_write_time(filename);
-        
-        auto it = cache.find(filename);
-        if (it != cache.end() && it->second.lastModified == lastWrite) {
-            return it->second.content;
-        }
-        
-        std::ifstream file(filename, std::ios::binary);
-        if (!file.is_open()) {
-            return "";
-        }
-        
-        std::string content((std::istreambuf_iterator<char>(file)),
-                           std::istreambuf_iterator<char>());
-        
-        if (currentCacheSize + content.size() > MAX_CACHE_SIZE) {
-            clearCache();
-        }
-        
-        cache[filename] = {content, lastWrite, content.size()};
-        currentCacheSize += content.size();
-        
-        return content;
     }
     
     void invalidateFile(const std::string& filename) {
         std::lock_guard<std::mutex> lock(cacheMutex);
         auto it = cache.find(filename);
         if (it != cache.end()) {
-            currentCacheSize -= it->second.size;
+            currentCacheSize -= it->second->size;
             cache.erase(it);
         }
     }
     
+    void cleanup() {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        
+        // Remove entries older than 10 minutes
+        auto cutoff = std::chrono::steady_clock::now() - std::chrono::minutes(10);
+        
+        auto it = cache.begin();
+        while (it != cache.end()) {
+            if (it->second->lastAccessed < cutoff) {
+                currentCacheSize -= it->second->size;
+                it = cache.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    
+    size_t getCacheSize() const { return currentCacheSize.load(); }
+    size_t getCacheEntries() const { 
+        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(cacheMutex));
+        return cache.size(); 
+    }
+    
 private:
-    void clearCache() {
-        cache.clear();
-        currentCacheSize = 0;
+    std::string readFileDirect(const std::string& filename) {
+        std::ifstream file(filename, std::ios::binary);
+        if (!file.is_open()) return "";
+        
+        // Get file size and reserve string capacity
+        file.seekg(0, std::ios::end);
+        size_t size = file.tellg();
+        file.seekg(0, std::ios::beg);
+        
+        std::string content;
+        content.reserve(size);
+        
+        // Read in chunks to avoid large allocations
+        constexpr size_t CHUNK_SIZE = 8192;
+        char chunk[CHUNK_SIZE];
+        
+        while (file.read(chunk, CHUNK_SIZE) || file.gcount() > 0) {
+            content.append(chunk, file.gcount());
+        }
+        
+        return content;
+    }
+    
+    void ensureCacheSpace(size_t neededSize) {
+        // Check if we need to free space
+        while ((currentCacheSize + neededSize > MAX_CACHE_SIZE) || 
+               (cache.size() >= MAX_CACHE_ENTRIES)) {
+            
+            if (cache.empty()) break;
+            
+            // Find least recently used entry
+            auto oldestIt = cache.begin();
+            for (auto it = cache.begin(); it != cache.end(); ++it) {
+                if (it->second->lastAccessed < oldestIt->second->lastAccessed) {
+                    oldestIt = it;
+                }
+            }
+            
+            // Remove oldest entry
+            currentCacheSize -= oldestIt->second->size;
+            cache.erase(oldestIt);
+        }
     }
 };
 
-// Health monitoring system
+// Enhanced health monitoring with crash detection
 class HealthMonitor {
 private:
     std::atomic<std::chrono::steady_clock::time_point> lastActivity;
     std::atomic<uint64_t> totalRequests{0};
     std::atomic<uint64_t> errorCount{0};
+    std::atomic<uint64_t> consecutiveErrors{0};
     std::atomic<bool> isHealthy{true};
     std::mutex healthMutex;
     
-    static constexpr std::chrono::seconds HEALTH_CHECK_INTERVAL{10};
-    static constexpr std::chrono::seconds ACTIVITY_TIMEOUT{60}; // 1 minute no activity = concern
-    static constexpr uint32_t MAX_ERROR_RATE = 50;              // 50% error rate = unhealthy
+    // Health thresholds
+    static constexpr std::chrono::seconds ACTIVITY_TIMEOUT{120}; // 2 minutes
+    static constexpr uint32_t MAX_ERROR_RATE = 40;               // 40% error rate
+    static constexpr uint32_t MAX_CONSECUTIVE_ERRORS = 5;        // 5 consecutive errors
     
 public:
     HealthMonitor() {
@@ -384,6 +543,12 @@ public:
     
     void recordError() {
         errorCount++;
+        consecutiveErrors++;
+        updateActivity();
+    }
+    
+    void recordSuccess() {
+        consecutiveErrors = 0; // Reset consecutive error counter
         updateActivity();
     }
     
@@ -391,9 +556,11 @@ public:
         bool healthy;
         uint64_t requests;
         uint64_t errors;
+        uint64_t consecutiveErrors;
         std::chrono::seconds lastActivityAge;
         double errorRate;
         std::string status;
+        bool criticalIssue;
     };
     
     HealthStatus getHealth() {
@@ -403,12 +570,19 @@ public:
         
         uint64_t req = totalRequests.load();
         uint64_t err = errorCount.load();
+        uint64_t consErr = consecutiveErrors.load();
         double errorRate = req > 0 ? (double)err / req * 100.0 : 0.0;
         
         bool healthy = true;
+        bool critical = false;
         std::string status = "HEALTHY";
         
-        if (ageSec > ACTIVITY_TIMEOUT) {
+        // Check for critical issues that could lead to crashes
+        if (consErr >= MAX_CONSECUTIVE_ERRORS) {
+            healthy = false;
+            critical = true;
+            status = "CRITICAL - " + std::to_string(consErr) + " consecutive errors";
+        } else if (ageSec > ACTIVITY_TIMEOUT) {
             healthy = false;
             status = "INACTIVE - No activity for " + std::to_string(ageSec.count()) + "s";
         } else if (errorRate > MAX_ERROR_RATE && req > 10) {
@@ -420,7 +594,7 @@ public:
         
         isHealthy.store(healthy);
         
-        return {healthy, req, err, ageSec, errorRate, status};
+        return {healthy, req, err, consErr, ageSec, errorRate, status, critical};
     }
     
     bool isCurrentlyHealthy() const {
@@ -430,54 +604,92 @@ public:
     void resetStats() {
         totalRequests = 0;
         errorCount = 0;
+        consecutiveErrors = 0;
         updateActivity();
     }
 };
 
-// Self-healing system
+// Enhanced self-healer with crash prevention
 class SelfHealer {
 private:
-    std::atomic<uint32_t> consecutiveFailures{0};
+    std::atomic<uint32_t> healingAttempts{0};
     std::atomic<bool> healingInProgress{false};
     Logger& logger;
+    FileCache& fileCache;
+    MemoryPool& memoryPool;
     
-    static constexpr uint32_t MAX_FAILURES = 3;
+    static constexpr uint32_t MAX_HEALING_ATTEMPTS = 3;
     
 public:
-    SelfHealer(Logger& log) : logger(log) {}
+    SelfHealer(Logger& log, FileCache& cache, MemoryPool& pool) 
+        : logger(log), fileCache(cache), memoryPool(pool) {}
     
-    void recordFailure() {
-        consecutiveFailures++;
-        if (consecutiveFailures >= MAX_FAILURES && !healingInProgress.load()) {
-            attemptHealing();
-        }
-    }
-    
-    void recordSuccess() {
-        consecutiveFailures = 0;
-    }
-    
-private:
-    void attemptHealing() {
+    void performMaintenance() {
+        if (healingInProgress.load()) return;
+        
         healingInProgress = true;
-        // logger.warn("Activated after " + std::to_string(consecutiveFailures.load()) + " failures");
         
-        // Give system time to recover
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        try {
+            // Clean up file cache
+            fileCache.cleanup();
+            
+            // Clean up memory pool
+            memoryPool.cleanupStaleBlocks();
+            
+            // Force garbage collection of any remaining resources
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            
+        } catch (const std::exception& e) {
+            logger.error("Maintenance error: " + std::string(e.what()));
+        }
         
-        // logger.info("System recovery attempt completed");
-        consecutiveFailures = 0;
         healingInProgress = false;
+    }
+    
+    void handleCriticalState(const HealthMonitor::HealthStatus& health) {
+        if (!health.criticalIssue || healingInProgress.load()) return;
+        
+        if (healingAttempts >= MAX_HEALING_ATTEMPTS) {
+            logger.error("Max healing attempts reached - manual intervention required");
+            return;
+        }
+        
+        healingInProgress = true;
+        healingAttempts++;
+        
+        logger.warn("Critical state detected - attempting recovery " + 
+                   std::to_string(healingAttempts.load()) + "/" + 
+                   std::to_string(MAX_HEALING_ATTEMPTS));
+        
+        try {
+            // Aggressive cleanup
+            fileCache.cleanup();
+            memoryPool.cleanupStaleBlocks();
+            
+            // Brief pause to let system recover
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            
+            logger.info("Recovery attempt completed");
+            
+        } catch (const std::exception& e) {
+            logger.error("Recovery failed: " + std::string(e.what()));
+        }
+        
+        healingInProgress = false;
+    }
+    
+    void resetHealingAttempts() {
+        healingAttempts = 0;
     }
 };
 
-// Debounced file change detector
+// File watcher with improved change detection
 class FileWatcher {
 private:
     std::unordered_map<std::string, fs::file_time_type> fileStates;
     std::mutex watcherMutex;
     std::chrono::steady_clock::time_point lastChangeTime;
-    static constexpr std::chrono::milliseconds DEBOUNCE_TIME{500}; // 500ms
+    static constexpr std::chrono::milliseconds DEBOUNCE_TIME{750}; // Increased debounce
     
 public:
     bool hasChanges(const std::vector<std::string>& extensions) {
@@ -487,6 +699,7 @@ public:
         auto now = std::chrono::steady_clock::now();
         
         try {
+            // Only scan current directory to avoid deep recursion
             for (const auto& entry : fs::directory_iterator(".")) {
                 if (!entry.is_regular_file()) continue;
                 
@@ -506,14 +719,26 @@ public:
                 }
             }
         } catch (const std::exception&) {
-            // Just let's it go
+            // Silently handle filesystem errors
+            return false;
         }
         
-        if (hasNewChanges && (now - lastChangeTime) >= DEBOUNCE_TIME) {
-            return true;
-        }
+        // Return true only if changes are debounced
+        return hasNewChanges && (now - lastChangeTime) >= DEBOUNCE_TIME;
+    }
+    
+    void cleanup() {
+        std::lock_guard<std::mutex> lock(watcherMutex);
         
-        return false;
+        // Remove entries for files that no longer exist
+        auto it = fileStates.begin();
+        while (it != fileStates.end()) {
+            if (!fs::exists(it->first)) {
+                it = fileStates.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 };
 
@@ -523,26 +748,31 @@ private:
     std::atomic<bool> running{false};
     std::thread serverThread;
     std::thread watcherThread;
-    std::thread healthThread; // health monitoring thread
+    std::thread healthThread;
+    std::thread maintenanceThread; // New maintenance thread
     std::atomic<bool> filesChanged{false};
+    
     Logger logger;
     FileCache fileCache;
     MemoryPool memoryPool;
     FileWatcher fileWatcher;
     RateLimiter rateLimiter;
-    HealthMonitor healthMonitor; // health monitor
-    SelfHealer selfHealer;       // self healer
+    HealthMonitor healthMonitor;
+    SelfHealer selfHealer;
+    
     int port;
+    std::atomic<uint32_t> activeConnections{0}; // Track active connections
+    static constexpr uint32_t MAX_CONNECTIONS = 50; // Limit concurrent connections
     
     static const std::unordered_map<std::string, std::string> mimeTypes;
     static const std::vector<std::string> watchedExtensions;
-    
     static const std::string notFoundResponse;
     static const std::string rateLimitResponse;
+    static const std::string serverBusyResponse;
     static const std::string liveReloadScript;
 
 public:
-    HTTPServer(int p = 3000) : port(p), selfHealer(logger) {}
+    HTTPServer(int p = 3000) : port(p), selfHealer(logger, fileCache, memoryPool) {}
     
     ~HTTPServer() {
         stop();
@@ -574,17 +804,36 @@ public:
         
         running = true;
         
+        // Main server thread
         serverThread = std::thread([this]() {
             while (running) {
-                Socket client = serverSocket.accept();
-                if (client.isValid()) {
-                    std::thread([this](Socket client) {
-                        handleClient(std::move(client));
-                    }, std::move(client)).detach();
+                try {
+                    Socket client = serverSocket.accept();
+                    if (client.isValid()) {
+                        // Check connection limit
+                        if (activeConnections >= MAX_CONNECTIONS) {
+                            // Send busy response and close
+                            client.send(serverBusyResponse);
+                            continue;
+                        }
+                        
+                        activeConnections++;
+                        std::thread([this](Socket client) {
+                            handleClient(std::move(client));
+                            activeConnections--;
+                        }, std::move(client)).detach();
+                    }
+                } catch (const std::exception& e) {
+                    logger.error("Server thread error: " + std::string(e.what()));
+                    healthMonitor.recordError();
                 }
+                
+                // Brief yield to prevent tight loop
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
         });
         
+        // File watcher thread
         watcherThread = std::thread([this]() {
             while (running) {
                 try {
@@ -592,42 +841,64 @@ public:
                         filesChanged = true;
                         logger.info("File changes detected");
                         healthMonitor.updateActivity();
+                        
+                        // Invalidate cache for changed files
+                        for (const auto& ext : watchedExtensions) {
+                            // Simple invalidation - could be more sophisticated
+                            fileCache.invalidateFile("index.html");
+                        }
                     }
                 } catch (const std::exception& e) {
                     logger.error("File watcher error: " + std::string(e.what()));
-                    selfHealer.recordFailure();
+                    healthMonitor.recordError();
                 }
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
             }
         });
         
         // Health monitoring thread
         healthThread = std::thread([this]() {
+            int healthCheckCounter = 0;
+            
             while (running) {
                 std::this_thread::sleep_for(std::chrono::seconds(10));
                 
-                auto health = healthMonitor.getHealth();
-                
-                static int healthLogCounter = 0;
-                if (++healthLogCounter % 6 == 0) {
-                    logger.info("Health: " + health.status + 
-                              "  Requests: " + std::to_string(health.requests) + 
-                              "  Errors: " + std::to_string(health.errors));
-                }
-                
-                // Check if system needs attention
-                if (!health.healthy) {
-                    // logger.warn("Server health issue detected - " + health.status);
+                try {
+                    auto health = healthMonitor.getHealth();
                     
-                    if (health.errorRate > 50 && health.requests > 20) {
-                        // logger.warn("High error rate detected, resetting stats...");
-                        healthMonitor.resetStats();
+                    // Log health status every minute
+                    if (++healthCheckCounter % 6 == 0) {
+                        logger.info("Health: " + health.status + 
+                                  "  Requests: " + std::to_string(health.requests) + 
+                                  "  Errors: " + std::to_string(health.errors) +
+                                  "  Cache: " + std::to_string(fileCache.getCacheEntries()) + " files/" +
+                                  std::to_string(fileCache.getCacheSize() / 1024) + "KB" +
+                                  "  Memory: " + std::to_string(memoryPool.getUtilization()) + "%");
                     }
+                    
+                    // Handle critical states
+                    if (health.criticalIssue) {
+                        selfHealer.handleCriticalState(health);
+                    } else if (health.healthy) {
+                        selfHealer.resetHealingAttempts();
+                    }
+                    
+                } catch (const std::exception& e) {
+                    logger.error("Health check error: " + std::string(e.what()));
                 }
+            }
+        });
+        
+        // Maintenance thread - periodic cleanup
+        maintenanceThread = std::thread([this]() {
+            while (running) {
+                std::this_thread::sleep_for(std::chrono::minutes(2)); // Every 2 minutes
                 
-                // extreme cases
-                if (health.lastActivityAge > std::chrono::minutes(5) && health.requests > 0) {
-                    logger.error("Server appears frozen! Consider manual restart.");
+                try {
+                    selfHealer.performMaintenance();
+                    fileWatcher.cleanup();
+                } catch (const std::exception& e) {
+                    logger.error("Maintenance error: " + std::string(e.what()));
                 }
             }
         });
@@ -652,6 +923,10 @@ public:
             healthThread.join();
         }
         
+        if (maintenanceThread.joinable()) {
+            maintenanceThread.join();
+        }
+        
 #ifdef _WIN32
         WSACleanup();
 #endif
@@ -673,38 +948,56 @@ public:
     
 private:
     void handleClient(Socket client) {
+        // Ensure cleanup on scope exit
+        struct ConnectionGuard {
+            HTTPServer* server;
+            ~ConnectionGuard() { 
+                if (server) server->healthMonitor.updateActivity(); 
+            }
+        } guard{this};
+        
         healthMonitor.recordRequest();
         
         PooledBuffer buffer(memoryPool);
         if (!buffer.valid()) {
-            logger.warn("Memory pool exhausted");
+            logger.warn("Memory pool exhausted - " + 
+                       std::to_string(memoryPool.getUtilization()) + "% utilized");
             healthMonitor.recordError();
-            selfHealer.recordFailure();
+            client.send(serverBusyResponse);
             return;
         }
         
-        int bytesRead = client.recv(buffer.get(), 4096);
+        int bytesRead = client.recv(buffer.get(), buffer.size() - 1);
         if (bytesRead <= 0) {
             healthMonitor.recordError();
             return;
         }
         
+        // Null-terminate for safety
+        buffer.get()[bytesRead] = '\0';
         std::string_view request(buffer.get(), bytesRead);
         
+        // Parse HTTP request with better error handling
         auto firstSpace = request.find(' ');
-        if (firstSpace == std::string_view::npos) {
+        if (firstSpace == std::string_view::npos || firstSpace == 0) {
             healthMonitor.recordError();
             return;
         }
         
         auto secondSpace = request.find(' ', firstSpace + 1);
-        if (secondSpace == std::string_view::npos) {
+        if (secondSpace == std::string_view::npos || secondSpace <= firstSpace + 1) {
             healthMonitor.recordError();
             return;
         }
         
         std::string_view method = request.substr(0, firstSpace);
         std::string_view path = request.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+        
+        // Only handle GET requests
+        if (method != "GET") {
+            healthMonitor.recordError();
+            return;
+        }
         
         try {
             if (path == "/reload") {
@@ -715,49 +1008,68 @@ private:
                 serveHealth(client);
             } else {
                 std::string filename = (path == "/") ? "index.html" : std::string(path.substr(1));
+                
+                // Prevent directory traversal
+                if (filename.find("..") != std::string::npos || 
+                    filename.find("//") != std::string::npos) {
+                    client.send(notFoundResponse);
+                    healthMonitor.recordError();
+                    return;
+                }
+                
                 serveFile(client, filename);
             }
-            selfHealer.recordSuccess();
+            healthMonitor.recordSuccess();
+            
         } catch (const std::exception& e) {
             logger.error("Request handling error: " + std::string(e.what()));
             healthMonitor.recordError();
-            selfHealer.recordFailure();
+            client.send(serverBusyResponse);
         }
     }
     
     void serveFile(Socket& client, const std::string& filename) {
-        std::string content = fileCache.getFile(filename);
-        
-        if (content.empty()) {
-            client.send(notFoundResponse);
-            return;
-        }
-        
-        if (filename.ends_with(".html")) {
-            injectLiveReloadScript(content);
-        }
-        
-        std::string mimeType = getMimeType(filename);
-        
-        std::string response;
-        response.reserve(content.size() + 256);
-        
-        response = "HTTP/1.1 200 OK\r\n"
-                  "Content-Type: ";
-        response += mimeType;
-        response += "\r\nContent-Length: ";
-        response += std::to_string(content.length());
-        response += "\r\nCache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n"
-                   "Pragma: no-cache\r\n"
-                   "Expires: 0\r\n"
-                   "Access-Control-Allow-Origin: *\r\n"
-                   "Connection: close\r\n\r\n";
-        response += content;
-        
-        if (!client.send(response)) {
-            logger.warn("Failed to send file: " + filename);
-        } else {
-            logger.info("Served: " + filename + " (" + std::to_string(content.length()) + " bytes)");
+        try {
+            std::string content = fileCache.getFile(filename);
+            
+            if (content.empty()) {
+                client.send(notFoundResponse);
+                return;
+            }
+            
+            // Inject live reload script for HTML files
+            if (filename.ends_with(".html")) {
+                injectLiveReloadScript(content);
+            }
+            
+            std::string mimeType = getMimeType(filename);
+            
+            // Pre-calculate response size to avoid reallocations
+            size_t headerSize = 256; // Estimated header size
+            std::string response;
+            response.reserve(content.size() + headerSize);
+            
+            response = "HTTP/1.1 200 OK\r\n"
+                      "Content-Type: " + mimeType + "\r\n"
+                      "Content-Length: " + std::to_string(content.length()) + "\r\n"
+                      "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n"
+                      "Pragma: no-cache\r\n"
+                      "Expires: 0\r\n"
+                      "Access-Control-Allow-Origin: *\r\n"
+                      "Connection: close\r\n\r\n";
+            response += content;
+            
+            if (!client.send(response)) {
+                logger.warn("Failed to send file: " + filename);
+                healthMonitor.recordError();
+            } else {
+                logger.info("Served: " + filename + " (" + std::to_string(content.length()) + " bytes)");
+            }
+            
+        } catch (const std::exception& e) {
+            logger.error("File serving error: " + std::string(e.what()));
+            healthMonitor.recordError();
+            client.send(serverBusyResponse);
         }
     }
     
@@ -765,20 +1077,22 @@ private:
         if (!rateLimiter.allowRequest()) {
             client.send(rateLimitResponse);
             logger.warn("Reload request rate limited");
+            healthMonitor.recordError();
             return;
         }
         
         bool shouldReload = filesChanged.exchange(false);
         
+        std::string jsonBody = "{\"reload\":" + std::string(shouldReload ? "true" : "false") + "}";
+        
         std::string response = "HTTP/1.1 200 OK\r\n"
                               "Content-Type: application/json\r\n"
+                              "Content-Length: " + std::to_string(jsonBody.length()) + "\r\n"
                               "Access-Control-Allow-Origin: *\r\n"
                               "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n"
                               "Pragma: no-cache\r\n"
                               "Expires: 0\r\n"
-                              "Connection: close\r\n\r\n{\"reload\":";
-        response += shouldReload ? "true" : "false";
-        response += "}";
+                              "Connection: close\r\n\r\n" + jsonBody;
         
         client.send(response);
     }
@@ -791,8 +1105,13 @@ private:
             "\"status\":\"" + health.status + "\","
             "\"requests\":" + std::to_string(health.requests) + ","
             "\"errors\":" + std::to_string(health.errors) + ","
+            "\"consecutive_errors\":" + std::to_string(health.consecutiveErrors) + ","
             "\"error_rate\":" + std::to_string(health.errorRate) + ","
             "\"last_activity_seconds\":" + std::to_string(health.lastActivityAge.count()) + ","
+            "\"active_connections\":" + std::to_string(activeConnections.load()) + ","
+            "\"memory_utilization\":" + std::to_string(memoryPool.getUtilization()) + ","
+            "\"cache_entries\":" + std::to_string(fileCache.getCacheEntries()) + ","
+            "\"cache_size_kb\":" + std::to_string(fileCache.getCacheSize() / 1024) + ","
             "\"uptime\":\"" + getUptimeString() + "\""
             "}";
         
@@ -854,6 +1173,7 @@ private:
     }
 };
 
+// Static member definitions
 const std::unordered_map<std::string, std::string> HTTPServer::mimeTypes = {
     {".html", "text/html"},
     {".css", "text/css"},
@@ -863,7 +1183,10 @@ const std::unordered_map<std::string, std::string> HTTPServer::mimeTypes = {
     {".jpg", "image/jpeg"},
     {".jpeg", "image/jpeg"},
     {".svg", "image/svg+xml"},
-    {".ico", "image/x-icon"}
+    {".ico", "image/x-icon"},
+    {".webp", "image/webp"},
+    {".woff", "font/woff"},
+    {".woff2", "font/woff2"}
 };
 
 const std::vector<std::string> HTTPServer::watchedExtensions = {
@@ -885,70 +1208,121 @@ const std::string HTTPServer::rateLimitResponse =
     "Connection: close\r\n\r\n"
     "{\"error\":\"Rate limited\",\"reload\":false}";
 
-// Live reload script with better error handling and backoff
+const std::string HTTPServer::serverBusyResponse = 
+    "HTTP/1.1 503 Service Unavailable\r\n"
+    "Content-Type: application/json\r\n"
+    "Retry-After: 3\r\n"
+    "Connection: close\r\n\r\n"
+    "{\"error\":\"Server busy\",\"reload\":false}";
+
+// Enhanced live reload script with better stability
 const std::string HTTPServer::liveReloadScript = R"(
 (function() {
-    console.log('Live reload script loaded');
+    'use strict';
+    console.log('Enhanced live reload v2.0 loaded');
     
     let retryCount = 0;
-    let maxRetries = 5;
-    let baseDelay = 1000;
+    let maxRetries = 3; // Reduced max retries
+    let baseDelay = 1500; // Increased base delay
     let isReloading = false;
+    let isPageVisible = !document.hidden;
+    let consecutiveFailures = 0;
     
+    // Adaptive backoff with circuit breaker
     function getBackoffDelay() {
-        return Math.min(baseDelay * Math.pow(2, retryCount), 10000);
+        if (consecutiveFailures > 5) {
+            return 30000; // 30 second delay after multiple failures
+        }
+        return Math.min(baseDelay * Math.pow(1.5, retryCount), 15000);
     }
     
     function checkForReload() {
-        if (isReloading) return;
+        if (isReloading || !isPageVisible) return;
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+            consecutiveFailures++;
+        }, 2000); // Reduced timeout
         
         fetch('/reload', { 
             signal: controller.signal,
-            cache: 'no-cache'
+            cache: 'no-cache',
+            keepalive: false
         })
         .then(response => {
             clearTimeout(timeoutId);
+            
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            retryCount = 0; // Reset on successful request
+            // Success - reset counters
+            retryCount = 0;
+            consecutiveFailures = 0;
+            
             if (data.reload && !isReloading) {
                 isReloading = true;
-                console.log('Reloading page...');
-                location.reload();
+                console.log('Reloading page due to file changes...');
+                
+                // Small delay to ensure server is ready
+                setTimeout(() => {
+                    location.reload();
+                }, 100);
             }
         })
         .catch(error => {
             clearTimeout(timeoutId);
+            
             if (error.name !== 'AbortError') {
                 retryCount = Math.min(retryCount + 1, maxRetries);
-                console.warn('Live reload error:', error, 'Retry:', retryCount);
+                consecutiveFailures++;
+                
+                if (consecutiveFailures <= 3) {
+                    console.warn('Live reload connection issue:', error.message, 
+                                'Retry:', retryCount, 'Failures:', consecutiveFailures);
+                }
             }
         });
     }
     
     function scheduleNextCheck() {
-        const delay = retryCount > 0 ? getBackoffDelay() : 1500;
+        if (isReloading) return;
+        
+        const delay = retryCount > 0 ? getBackoffDelay() : 
+                     (consecutiveFailures > 3 ? 5000 : 1500);
+        
         setTimeout(() => {
-            checkForReload();
-            scheduleNextCheck();
+            if (!isReloading) {
+                checkForReload();
+                scheduleNextCheck();
+            }
         }, delay);
     }
     
-    // Start the polling loop
-    scheduleNextCheck();
-    
-    // Also check on page visibility change
+    // Track page visibility for better resource management
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && retryCount > 0) {
+        isPageVisible = !document.hidden;
+        
+        if (isPageVisible) {
+            // Reset some counters when page becomes visible again
+            if (consecutiveFailures > 0) {
+                consecutiveFailures = Math.max(0, consecutiveFailures - 1);
+            }
             retryCount = Math.max(0, retryCount - 1);
         }
+    });
+    
+    // Start the polling loop with initial delay
+    setTimeout(() => {
+        scheduleNextCheck();
+    }, 500);
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        isReloading = true;
     });
 })();
 )";
@@ -968,8 +1342,7 @@ private:
 #else
         system("clear");
 #endif
-        logger.info("=== LOG CLEARED ===");
-        logger.info("Server still running on: http://localhost:" + std::to_string(server.getPort()));
+        logger.info("Enhanced Live Server running on: http://localhost:" + std::to_string(server.getPort()));
         logger.info("Press Ctrl+C to stop");
         logger.info("Linux/macOS: Send 'kill -USR1 <PID>' for manual clear");
         logger.info("HMR improvements: Rate limiting, debouncing, better error handling");
@@ -983,14 +1356,12 @@ public:
     }
     
     bool start() {
-        // logger.info("Live Server");
-        
         if (!server.start()) {
             logger.error("Failed to start server");
             return false;
         }
         
-        logger.info("Server ready with improved HMR!");
+        logger.info("Enhanced Live Server ready!");
         logger.info("http://localhost:" + std::to_string(server.getPort()));
         logger.info("Press Ctrl+C to stop");
         
@@ -1003,18 +1374,18 @@ public:
 #ifdef _WIN32
         SetConsoleCtrlHandler([](DWORD ctrlType) -> BOOL {
             if (ctrlType == CTRL_C_EVENT) {
-                std::cout << "\nShutting down..." << std::endl;
+                std::cout << "\nShutting down gracefully..." << std::endl;
                 exit(0);
             }
             return FALSE;
         }, TRUE);
 #else
         signal(SIGINT, [](int) {
-            std::cout << "\nShutting down..." << std::endl;
+            std::cout << "\nShutting down gracefully..." << std::endl;
             exit(0);
         });
         
-        // For manual log clearing
+        // Manual log clearing signal
         signal(SIGUSR1, [this](int) {
             clearLog();
             logger.info("Manual log clear triggered");
@@ -1024,6 +1395,7 @@ public:
         while (running) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
 
+            // Auto-clear log periodically to prevent console clutter
             if (AUTO_CLEAR_ENABLED && 
                 std::chrono::duration_cast<std::chrono::minutes>(
                     std::chrono::steady_clock::now() - lastLogResetTime) >= logResetInterval) {
@@ -1059,8 +1431,12 @@ int main(int argc, char* argv[]) {
         }
         
         app.run();
+        
     } catch (const std::exception& e) {
-        std::cerr << "Exception: " << e.what() << std::endl;
+        std::cerr << "Critical error: " << e.what() << std::endl;
+        return 1;
+    } catch (...) {
+        std::cerr << "Unknown critical error occurred" << std::endl;
         return 1;
     }
     
@@ -1068,6 +1444,8 @@ int main(int argc, char* argv[]) {
 }
 
 /*    
+    COMPILATION COMMANDS:
+    
     WINDOWS (MinGW):
     g++ -x c++ -std=c++20 -static -O3 -DNDEBUG -flto -march=native LiveServer.cpp -o LiveServer.exe -lstdc++ -lws2_32
     
@@ -1077,19 +1455,9 @@ int main(int argc, char* argv[]) {
     macOS:
     g++ -std=c++20 -O3 -DNDEBUG -flto -march=native LiveServer.cpp -o LiveServer
     
-    - O3
-    - DNDEBUG
-    - flto Link-time
-    - march=native CPU
-
-    Hot Reload fixed updates
-    
-    1. Rate Limiter: Prevents excessive reload requests (10 requests per 5 seconds)
-    2. File Change Debouncing: 500ms debounce to avoid rapid-fire changes
-    3. Socket Timeouts: Prevents hanging connections
-    4. Exponential Backoff: Client-side retry with increasing delays
-    5. Connection Management: Proper socket cleanup with "Connection: close"
-    6. Error Handling: Better error recovery and logging
-    7. Memory Pool: Efficient buffer management to prevent exhaustion
-
+    FLAGS:
+    - O3: Maximum optimization
+    - DNDEBUG: Disable debug assertions
+    - flto: Link-time optimization
+    - march=native: CPU-specific optimizations
 */
