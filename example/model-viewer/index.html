@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Model Viewer</title>
+    <link rel="dns-prefetch" href="//mint-teams.web.app" />
+    <link rel="preconnect" href="https://mint-teams.web.app" crossorigin />
+    <link rel="modulepreload" href="https://mint-teams.web.app/Mintkit/mint.js" />
+
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@1,2&f[]=satoshi@1,2&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+    <div id="app"></div>
+
+    <script type="module">
+        import { Mint } from 'https://mint-teams.web.app/Mintkit/mint.js';
+        import { Content } from './scripts/content.js';
+
+        Mint.include('./style.css', {
+            type: 'text/css',
+            id: 'model-viewer-style'
+        });
+
+        const App = () => {
+            const root = {
+                html: Content.components,
+            };
+
+            queueMicrotask(() => {
+                Mint.injectHTML('#app', root.html);
+            });
+        };
+
+        App();
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script type="module" src="./scripts/loader.js"></script>
+</body>
+
+</html>
