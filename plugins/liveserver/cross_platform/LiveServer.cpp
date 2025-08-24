@@ -18,6 +18,7 @@
 #include <array>
 #include <queue>
 #include <list>
+#include <iomanip>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -360,9 +361,9 @@ public:
         std::cout << "[" << std::put_time(&tm, "%H:%M:%S") << "] " << message << std::endl;
     }
     
-    void info(std::string_view message) { log(std::string("INFO: ") + std::string(message)); }
-    void warn(std::string_view message) { log(std::string("WARN: ") + std::string(message)); }
-    void error(std::string_view message) { log(std::string("ERROR: ") + std::string(message)); }
+    void info(std::string_view message) { log(message); }
+    void warn(std::string_view message) { log(message); }
+    void error(std::string_view message) { log(message); }
 };
 
 // Improved file cache with LRU eviction and better memory management
@@ -380,7 +381,7 @@ private:
     };
     
     std::unordered_map<std::string, std::unique_ptr<CacheEntry>> cache;
-    std::mutex cacheMutex;
+    mutable std::mutex cacheMutex;
     
     // Reduced cache limits to prevent memory issues
     static constexpr size_t MAX_CACHE_SIZE = 20 * 1024 * 1024; // 20MB max
@@ -462,7 +463,7 @@ public:
     
     size_t getCacheSize() const { return currentCacheSize.load(); }
     size_t getCacheEntries() const { 
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(cacheMutex));
+        std::lock_guard<std::mutex> lock(cacheMutex);
         return cache.size(); 
     }
     
@@ -520,7 +521,7 @@ private:
     std::atomic<uint64_t> errorCount{0};
     std::atomic<uint64_t> consecutiveErrors{0};
     std::atomic<bool> isHealthy{true};
-    std::mutex healthMutex;
+    mutable std::mutex healthMutex;
     
     // Health thresholds
     static constexpr std::chrono::seconds ACTIVITY_TIMEOUT{120}; // 2 minutes
@@ -839,7 +840,7 @@ public:
                 try {
                     if (fileWatcher.hasChanges(watchedExtensions)) {
                         filesChanged = true;
-                        logger.info("File changes detected");
+                        logger.info("Files changed");
                         healthMonitor.updateActivity();
                         
                         // Invalidate cache for changed files
@@ -868,12 +869,12 @@ public:
                     
                     // Log health status every minute
                     if (++healthCheckCounter % 6 == 0) {
-                        logger.info("Health: " + health.status + 
-                                  "  Requests: " + std::to_string(health.requests) + 
-                                  "  Errors: " + std::to_string(health.errors) +
-                                  "  Cache: " + std::to_string(fileCache.getCacheEntries()) + " files/" +
+                        logger.info("Status: " + health.status + 
+                                  " Requests: " + std::to_string(health.requests) + 
+                                  " Errors: " + std::to_string(health.errors) +
+                                  " Cache: " + std::to_string(fileCache.getCacheEntries()) + "/" +
                                   std::to_string(fileCache.getCacheSize() / 1024) + "KB" +
-                                  "  Memory: " + std::to_string(memoryPool.getUtilization()) + "%");
+                                  " Memory: " + std::to_string(memoryPool.getUtilization()) + "%");
                     }
                     
                     // Handle critical states
@@ -1038,7 +1039,7 @@ private:
             }
             
             // Inject live reload script for HTML files
-            if (filename.ends_with(".html")) {
+            if (filename.length() > 5 && filename.substr(filename.length() - 5) == ".html") {
                 injectLiveReloadScript(content);
             }
             
@@ -1219,19 +1220,18 @@ const std::string HTTPServer::serverBusyResponse =
 const std::string HTTPServer::liveReloadScript = R"(
 (function() {
     'use strict';
-    console.log('Enhanced live reload v2.0 loaded');
+    console.log('Live reload loaded');
     
     let retryCount = 0;
-    let maxRetries = 3; // Reduced max retries
-    let baseDelay = 1500; // Increased base delay
+    let maxRetries = 3;
+    let baseDelay = 1500;
     let isReloading = false;
     let isPageVisible = !document.hidden;
     let consecutiveFailures = 0;
     
-    // Adaptive backoff with circuit breaker
     function getBackoffDelay() {
         if (consecutiveFailures > 5) {
-            return 30000; // 30 second delay after multiple failures
+            return 30000;
         }
         return Math.min(baseDelay * Math.pow(1.5, retryCount), 15000);
     }
@@ -1243,7 +1243,7 @@ const std::string HTTPServer::liveReloadScript = R"(
         const timeoutId = setTimeout(() => {
             controller.abort();
             consecutiveFailures++;
-        }, 2000); // Reduced timeout
+        }, 2000);
         
         fetch('/reload', { 
             signal: controller.signal,
@@ -1259,15 +1259,13 @@ const std::string HTTPServer::liveReloadScript = R"(
             return response.json();
         })
         .then(data => {
-            // Success - reset counters
             retryCount = 0;
             consecutiveFailures = 0;
             
             if (data.reload && !isReloading) {
                 isReloading = true;
-                console.log('Reloading page due to file changes...');
+                console.log('Reloading page...');
                 
-                // Small delay to ensure server is ready
                 setTimeout(() => {
                     location.reload();
                 }, 100);
@@ -1281,8 +1279,7 @@ const std::string HTTPServer::liveReloadScript = R"(
                 consecutiveFailures++;
                 
                 if (consecutiveFailures <= 3) {
-                    console.warn('Live reload connection issue:', error.message, 
-                                'Retry:', retryCount, 'Failures:', consecutiveFailures);
+                    console.warn('Live reload connection issue');
                 }
             }
         });
@@ -1302,12 +1299,10 @@ const std::string HTTPServer::liveReloadScript = R"(
         }, delay);
     }
     
-    // Track page visibility for better resource management
     document.addEventListener('visibilitychange', () => {
         isPageVisible = !document.hidden;
         
         if (isPageVisible) {
-            // Reset some counters when page becomes visible again
             if (consecutiveFailures > 0) {
                 consecutiveFailures = Math.max(0, consecutiveFailures - 1);
             }
@@ -1315,12 +1310,10 @@ const std::string HTTPServer::liveReloadScript = R"(
         }
     });
     
-    // Start the polling loop with initial delay
     setTimeout(() => {
         scheduleNextCheck();
     }, 500);
     
-    // Cleanup on page unload
     window.addEventListener('beforeunload', () => {
         isReloading = true;
     });
@@ -1338,15 +1331,12 @@ private:
 
     void clearLog() {
 #ifdef _WIN32
-        system("cls");
+        std::system("cls");
 #else
-        system("clear");
+        std::system("clear");
 #endif
-        logger.info("Enhanced Live Server running on: http://localhost:" + std::to_string(server.getPort()));
+        logger.info("Live Server running on: http://localhost:" + std::to_string(server.getPort()));
         logger.info("Press Ctrl+C to stop");
-        logger.info("Linux/macOS: Send 'kill -USR1 <PID>' for manual clear");
-        logger.info("HMR improvements: Rate limiting, debouncing, better error handling");
-        logger.info("Health monitoring: Auto-detection of issues and self-healing");
         logger.info("Health endpoint: http://localhost:" + std::to_string(server.getPort()) + "/health");
     }
 
@@ -1361,7 +1351,7 @@ public:
             return false;
         }
         
-        logger.info("Enhanced Live Server ready!");
+        logger.info("Live Server ready");
         logger.info("http://localhost:" + std::to_string(server.getPort()));
         logger.info("Press Ctrl+C to stop");
         
@@ -1374,28 +1364,26 @@ public:
 #ifdef _WIN32
         SetConsoleCtrlHandler([](DWORD ctrlType) -> BOOL {
             if (ctrlType == CTRL_C_EVENT) {
-                std::cout << "\nShutting down gracefully..." << std::endl;
+                std::cout << "\nShutting down..." << std::endl;
                 exit(0);
             }
             return FALSE;
         }, TRUE);
 #else
         signal(SIGINT, [](int) {
-            std::cout << "\nShutting down gracefully..." << std::endl;
+            std::cout << "\nShutting down..." << std::endl;
             exit(0);
         });
         
-        // Manual log clearing signal
-        signal(SIGUSR1, [this](int) {
-            clearLog();
-            logger.info("Manual log clear triggered");
+        signal(SIGUSR1, [](int) {
+            std::system("clear");
+            std::cout << "Manual log clear" << std::endl;
         });
 #endif
 
         while (running) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
 
-            // Auto-clear log periodically to prevent console clutter
             if (AUTO_CLEAR_ENABLED && 
                 std::chrono::duration_cast<std::chrono::minutes>(
                     std::chrono::steady_clock::now() - lastLogResetTime) >= logResetInterval) {

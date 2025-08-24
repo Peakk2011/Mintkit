@@ -87,6 +87,11 @@ function setupControls() {
     renderer.domElement.addEventListener('mouseup', onMouseUp);
     renderer.domElement.addEventListener('wheel', onMouseWheel);
 
+    // Touch support
+    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
+    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: false });
+    renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: false });
+
     // Make functions global
     window.loadModel = loadModel;
     window.loadSample = loadSample;
@@ -318,6 +323,73 @@ function onMouseWheel(event) {
     const zoomSpeed = event.deltaY > 0 ? 1.1 : 0.9;
     cameraDistance *= zoomSpeed;
     cameraDistance = Math.max(3, Math.min(100, cameraDistance));
+}
+
+// Touch
+let lastTouchX = 0, lastTouchY = 0;
+let lastTouchDist = 0;
+let touchMode = null; // 'orbit' or 'pan'
+
+function getTouchDist(e) {
+    if (e.touches.length < 2) return 0;
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+function onTouchStart(e) {
+    if (e.touches.length === 1) {
+        touchMode = e.shiftKey ? 'pan' : 'orbit';
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+        mouseDown = true;
+        isPanning = false;
+    } else if (e.touches.length === 2) {
+        touchMode = 'zoom';
+        lastTouchDist = getTouchDist(e);
+        mouseDown = false;
+    }
+    e.preventDefault();
+}
+
+function onTouchMove(e) {
+    if (touchMode === 'orbit' && e.touches.length === 1 && mouseDown) {
+        const deltaX = e.touches[0].clientX - lastTouchX;
+        const deltaY = e.touches[0].clientY - lastTouchY;
+        targetTheta += deltaX * 0.008; // touch sensitivity
+        targetPhi = Math.max(0.1, Math.min(Math.PI - 0.1, targetPhi + deltaY * 0.008));
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+    } else if (touchMode === 'pan' && e.touches.length === 1 && mouseDown) {
+        const deltaX = e.touches[0].clientX - lastTouchX;
+        const deltaY = e.touches[0].clientY - lastTouchY;
+        const panSpeed = 0.01;
+        const right = new THREE.Vector3();
+        const up = new THREE.Vector3();
+        camera.getWorldDirection(new THREE.Vector3());
+        right.setFromMatrixColumn(camera.matrixWorld, 0);
+        up.setFromMatrixColumn(camera.matrixWorld, 1);
+        panTarget.add(right.multiplyScalar(-deltaX * panSpeed * cameraDistance * 0.1));
+        panTarget.add(up.multiplyScalar(deltaY * panSpeed * cameraDistance * 0.1));
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+    } else if (touchMode === 'zoom' && e.touches.length === 2) {
+        const dist = getTouchDist(e);
+        if (lastTouchDist > 0) {
+            const zoomFactor = dist / lastTouchDist;
+            cameraDistance /= zoomFactor;
+            cameraDistance = Math.max(3, Math.min(100, cameraDistance));
+        }
+        lastTouchDist = dist;
+    }
+    e.preventDefault();
+}
+
+function onTouchEnd(e) {
+    mouseDown = false;
+    touchMode = null;
+    lastTouchDist = 0;
+    e.preventDefault();
 }
 
 function animate() {
