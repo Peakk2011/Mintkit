@@ -658,7 +658,6 @@ function removeEventHandlers(node) {
             }
         }
 
-        // 递归ลบใน children
         for (const child of node.children) {
             removeEventHandlers(child);
         }
