@@ -18,6 +18,11 @@ import {
     compose,
     // General Utilities Object
     MintUtils,
+    // Routing exports
+    Router,
+    navigate,
+    Link,
+    withRouter
 } from './MintUtils.js';
 import { MintAssembly } from './HTMLInterpreter.js';
 
@@ -30,8 +35,12 @@ export const Mint = {
     get,
     include,
     processIncludes,
-    AdjustHook,
-    MintAssembly
+    // AdjustHook, if you using Mintkit liveserver you can uncomment this line
+    MintAssembly,
+    // Routing
+    Router,
+    navigate,
+    Link
 };
 
 export const Utility = {
@@ -44,8 +53,13 @@ export const Utility = {
     clearInjectionCache,
     // General
     MintUtils,
+    // Routing utilities
+    withRouter
 };
 
 // Direct Named Exports
 export * from './MintUtils.js';
 export { MintAssembly } from './HTMLInterpreter.js';
+
+// Export routing functions directly
+export { Router, navigate, Link, withRouter };

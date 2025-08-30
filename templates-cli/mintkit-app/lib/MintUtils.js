@@ -461,11 +461,11 @@ const hashCache = new Map();
 
 export function injectCSS(cssString, options = {}) {
     const {
-        nonce = null,
-        media = null,
-        priority = 'normal', // 'high', 'normal', 'low'
-        validate = true,
-        onError = console.error
+        nonce = null,           // Content Security Policy support
+        media = null,           // Media queries support
+        priority = 'normal',    // Loading priority options | 'normal' | 'high' | 'low' |
+        validate = true,        // Security validation = Bool
+        onError = console.error // Error handling
     } = options;
 
     if (!cssString || typeof cssString !== 'string') {
@@ -534,13 +534,29 @@ export function injectCSS(cssString, options = {}) {
 }
 
 export function injectHTML(targetSelector, htmlContent, options = {}) {
+    // Default options
     const {
-        sanitize = true,
-        allowScripts = false,
-        mode = 'replace', // 'replace', 'append', 'prepend'
+        sanitize = true,           // Toggle to clean HTML by default
+        allowScripts = false,      // Dont accept scripts by default
+        allowEvents = false,       // Dont accept event handlers by default
+        mode = 'replace',
         onError = console.error,
         validate = true
     } = options;
+
+    /*
+        mode: 'sanitize' | 'allowScripts' | 'allowEvents'
+        Mint.injectHTML("#app", trustedContent, {
+            sanitize: false,     // Disable sanitization
+            allowScripts: true,  // Scripts
+            allowEvents: true    // Events
+        });
+
+        Error Handling:
+        // If it has script will be removed
+        Mint.injectHTML("#app", "<script>alert('hacked')</script>");
+        // Result: script got removed
+    */
 
     if (!targetSelector || typeof targetSelector !== 'string' || targetSelector.trim() === '') {
         const error = new Error('injectHTML: targetSelector must be a non-empty string');
@@ -558,58 +574,148 @@ export function injectHTML(targetSelector, htmlContent, options = {}) {
             throw new Error(`injectHTML: No element matches selector: ${targetSelector}`);
         }
 
-        if (htmlContent instanceof DocumentFragment || htmlContent instanceof Node || htmlContent instanceof NodeList || htmlContent instanceof HTMLCollection) {
-            const fragment = document.createDocumentFragment();
-            if (htmlContent instanceof NodeList || htmlContent instanceof HTMLCollection) {
-                Array.from(htmlContent).forEach(node => fragment.appendChild(node.cloneNode(true)));
-            } else {
-                fragment.appendChild(htmlContent.cloneNode(true));
-            }
-            insertContent(target, fragment, mode);
-            return target;
+        // SECURITY SANITIZATION
+        let processedHTML = String(htmlContent);
+
+        processedHTML = processedHTML
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/ on\w+=\s*["'][^"']*["']/gi, '')
+            .replace(/ href=\s*["']javascript:[^"']*["']/gi, ' href="#"')
+            .replace(/ src=\s*["']javascript:[^"']*["']/gi, ' src="#"')
+            .replace(/ data:\s*[^"']*["']/gi, '');
+
+        if (!allowScripts && processedHTML.includes('<script')) {
+            processedHTML = processedHTML.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
         }
 
-        if (typeof htmlContent === 'string') {
-            let processedHTML = htmlContent;
+        // HTML PARSING
+        const parser = new DOMParser();
 
-            if (sanitize) {
-                processedHTML = sanitizeHTML(processedHTML);
-            }
+        const doc = parser.parseFromString(`<template>${processedHTML}</template>`, 'text/html');
 
-            if (!allowScripts && processedHTML.includes('<script')) {
-                if (validate) {
-                    throw new Error('injectHTML: Script tags detected and not allowed');
-                } else {
-                    console.warn('injectHTML: Script tags detected and removed');
-                    processedHTML = processedHTML.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-                }
-            }
-
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(`<div>${processedHTML}</div>`, 'text/html');
-
-            const parseError = doc.querySelector('parsererror');
-            if (parseError) {
-                throw new Error(`injectHTML: HTML parsing failed - ${parseError.textContent}`);
-            }
-
-            const fragment = document.createDocumentFragment();
-            const wrapper = doc.body.firstChild;
-
-            while (wrapper.firstChild) {
-                fragment.appendChild(wrapper.firstChild);
-            }
-
-            insertContent(target, fragment, mode);
-            return target;
+        const parseError = doc.querySelector('parsererror');
+        if (parseError) {
+            throw new Error(`injectHTML: HTML parsing failed - ${parseError.textContent}`);
         }
 
-        throw new Error('injectHTML: htmlContent must be a string, Node, or DocumentFragment');
+        const template = doc.querySelector('template');
+        if (!template) {
+            throw new Error('injectHTML: Template parsing failed');
+        }
+
+        const fragment = document.createDocumentFragment();
+        const importedContent = document.importNode(template.content, true);
+
+        removeEventHandlers(importedContent);
+
+        // SAFE INSERTION
+        const cleanFragment = document.createDocumentFragment();
+
+        while (importedContent.firstChild) {
+            const node = importedContent.firstChild;
+
+
+            if (isNodeSafe(node)) {
+                cleanFragment.appendChild(node.cloneNode(true));
+            }
+            importedContent.removeChild(node);
+        }
+
+        insertContent(target, cleanFragment, mode);
+
+        return target;
 
     } catch (error) {
         const enhancedError = new Error(`injectHTML: ${error.message}`);
         onError(enhancedError);
         throw enhancedError;
+    }
+}
+
+// Mint.injectHTML helper functions
+/*
+    function removeEventHandlers(node) {  }             // For injectHTML
+    function isNodeSafe(node) {  }                      // For injectHTML
+    function insertContent(target, content, mode) { }   // For injectHTML
+
+    Usage:
+
+    export function injectHTML(targetSelector, htmlContent, options = {}) {
+    ...
+        removeEventHandlers(importedContent);       // Call helper
+        isNodeSafe(node);                           // Call helper  
+        insertContent(target, cleanFragment, mode); // Call helper
+    ...
+    }
+*/
+function removeEventHandlers(node) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        // ลบ所有 event attributes
+        const attributes = node.getAttributeNames();
+        for (const attr of attributes) {
+            if (attr.startsWith('on') && attr.length > 2) {
+                node.removeAttribute(attr);
+            }
+        }
+
+        // 递归ลบใน children
+        for (const child of node.children) {
+            removeEventHandlers(child);
+        }
+    }
+}
+
+function isNodeSafe(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+        return true;
+    }
+
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        // Dangerous elements
+        const tagName = node.tagName.toLowerCase();
+        const dangerousTags = ['script', 'iframe', 'object', 'embed', 'base'];
+
+        if (dangerousTags.includes(tagName)) {
+            return false;
+        }
+
+        // Check dangerous attributes
+        const attributes = node.getAttributeNames();
+        for (const attr of attributes) {
+            if (attr.startsWith('on') && attr.length > 2) {
+                return false; // Not secure if it has event handlers
+            }
+            if (attr === 'href' || attr === 'src') {
+                const value = node.getAttribute(attr) || '';
+                if (value.toLowerCase().startsWith('javascript:') ||
+                    value.toLowerCase().startsWith('data:')) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+function insertContent(target, content, mode) {
+    // Safe DOM methods
+    switch (mode) {
+        case 'append':
+            target.appendChild(content);
+            break;
+        case 'prepend':
+            target.insertBefore(content, target.firstChild);
+            break;
+        case 'replace':
+        default:
+            while (target.firstChild) {
+                target.removeChild(target.firstChild);
+            }
+            target.appendChild(content);
+            break;
     }
 }
 
@@ -757,7 +863,7 @@ export const AdjustHook = (options = {}) => {
 
     if (!config.enabled) {
         console.debug('AdjustHook: Hot reload disabled');
-        return { stop: () => {}, getStats: () => ({}), getMetrics: () => ({}) };
+        return { stop: () => { }, getStats: () => ({}), getMetrics: () => ({}) };
     }
 
     let intervalId = null;
@@ -765,7 +871,7 @@ export const AdjustHook = (options = {}) => {
     let isChecking = false;
     let retryCount = 0;
     let startTime = Date.now();
-    
+
     const metrics = {
         // Request metrics
         requests: {
@@ -774,7 +880,7 @@ export const AdjustHook = (options = {}) => {
             failed: 0,
             retries: 0
         },
-        
+
         // Performance metrics
         performance: {
             totalTime: 0,
@@ -784,7 +890,7 @@ export const AdjustHook = (options = {}) => {
             lastResponseTime: 0,
             responseTimeHistory: [] // Keep last 50 responses
         },
-        
+
         // Error metrics
         errors: {
             total: 0,
@@ -794,7 +900,7 @@ export const AdjustHook = (options = {}) => {
             lastError: null,
             lastErrorTime: null
         },
-        
+
         // Health metrics
         health: {
             uptime: 0,
@@ -803,7 +909,7 @@ export const AdjustHook = (options = {}) => {
             lastFailureTime: null,
             successRate: 100
         },
-        
+
         server: {
             memoryUsage: 0,
             cpuUsage: 0,
@@ -815,13 +921,13 @@ export const AdjustHook = (options = {}) => {
 
     const updatePerformanceMetrics = (responseTime) => {
         const perf = metrics.performance;
-        
+
         perf.totalTime += responseTime;
         perf.lastResponseTime = responseTime;
         perf.minResponseTime = Math.min(perf.minResponseTime, responseTime);
         perf.maxResponseTime = Math.max(perf.maxResponseTime, responseTime);
         perf.avgResponseTime = perf.totalTime / metrics.requests.total;
-        
+
         perf.responseTimeHistory.push(responseTime);
         if (perf.responseTimeHistory.length > 50) {
             perf.responseTimeHistory.shift();
@@ -832,15 +938,15 @@ export const AdjustHook = (options = {}) => {
         metrics.errors.total++;
         metrics.errors.consecutive++;
         metrics.errors.maxConsecutive = Math.max(
-            metrics.errors.maxConsecutive, 
+            metrics.errors.maxConsecutive,
             metrics.errors.consecutive
         );
         metrics.errors.lastError = error.message || error.toString();
         metrics.errors.lastErrorTime = Date.now();
-        
+
         const errorType = error.name || 'UnknownError';
         metrics.errors.types[errorType] = (metrics.errors.types[errorType] || 0) + 1;
-        
+
         metrics.health.isHealthy = metrics.errors.consecutive < 5;
         metrics.health.lastFailureTime = Date.now();
     };
@@ -853,16 +959,16 @@ export const AdjustHook = (options = {}) => {
 
     const updateHealthMetrics = () => {
         metrics.health.uptime = Date.now() - startTime;
-        
+
         const total = metrics.requests.successful + metrics.requests.failed;
-        metrics.health.successRate = total > 0 
-            ? (metrics.requests.successful / total) * 100 
+        metrics.health.successRate = total > 0
+            ? (metrics.requests.successful / total) * 100
             : 100;
     };
 
     const getResponseTimePercentile = (percentile) => {
         if (metrics.performance.responseTimeHistory.length === 0) return 0;
-        
+
         const sorted = [...metrics.performance.responseTimeHistory].sort((a, b) => a - b);
         const index = Math.ceil((percentile / 100) * sorted.length) - 1;
         return sorted[Math.max(0, index)];
@@ -914,7 +1020,7 @@ export const AdjustHook = (options = {}) => {
 
     const performHealthCheck = () => {
         updateHealthMetrics();
-        
+
         if (config.detailedLogging) {
             console.log(`AdjustHook Health Check: ${metrics.health.isHealthy ? 'Healthy' : 'Degraded'}`);
         }
@@ -929,14 +1035,14 @@ export const AdjustHook = (options = {}) => {
                 if (attempt === maxRetries) {
                     throw error;
                 }
-                
+
                 metrics.requests.retries++;
                 const delay = config.retryDelay * attempt; // Exponential backoff
-                
+
                 if (config.detailedLogging) {
                     console.warn(`AdjustHook: Retry ${attempt}/${maxRetries} in ${delay}ms`);
                 }
-                
+
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
@@ -952,7 +1058,7 @@ export const AdjustHook = (options = {}) => {
         try {
             await executeWithRetry(async () => {
                 metrics.requests.total++;
-                
+
                 const response = await fetch(config.endpoint, {
                     method: 'GET',
                     cache: 'no-cache',
@@ -1005,8 +1111,8 @@ export const AdjustHook = (options = {}) => {
             updateErrorMetrics(error);
 
             // Only log errors in development
-            if (config.detailedLogging || 
-                location.hostname === 'localhost' || 
+            if (config.detailedLogging ||
+                location.hostname === 'localhost' ||
                 location.hostname === '127.0.0.1') {
                 config.onError(error);
             }
@@ -1026,7 +1132,7 @@ export const AdjustHook = (options = {}) => {
 
     intervalId = setInterval(checkReload, config.interval);
     healthCheckId = setInterval(performHealthCheck, config.healthCheckInterval);
-    
+
     console.debug(
         `AdjustHook: Started monitoring ` +
         `(${config.interval}ms interval, ${config.maxRetries} retries, ` +
@@ -1044,9 +1150,9 @@ export const AdjustHook = (options = {}) => {
                 clearInterval(healthCheckId);
                 healthCheckId = null;
             }
-            
+
             console.debug('AdjustHook: Stopped');
-            
+
             if (config.performanceMonitoring) {
                 console.log('AdjustHook Final Report:');
                 reportMetrics();
@@ -1091,7 +1197,7 @@ export const AdjustHook = (options = {}) => {
         const seconds = Math.floor(ms / 1000);
         const minutes = Math.floor(seconds / 60);
         const hours = Math.floor(minutes / 60);
-        
+
         if (hours > 0) return `${hours}h ${minutes % 60}m`;
         if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
         return `${seconds}s`;
@@ -1271,3 +1377,255 @@ export const ReloadPerformanceTracker = {
         this.enabled = false;
     }
 };
+
+// Routes
+
+/**
+ * MintKit Router client-side routing system
+ * Singleton pattern that handle routing
+ * @namespace Router
+ */
+export const Router = (() => {
+    /**
+     * @private {string} currentPath - current URL path
+     * @private {Object} currentParams - Parameters from URL
+     * @private {Array} routeHandlers - stored route callbacks
+     * @private {Function|null} notFoundHandler - Handler for not found routes
+     */
+    let currentPath = window.location.pathname;
+    let currentParams = {};
+    let routeHandlers = [];
+    let notFoundHandler = null;
+
+    /**
+     * Check URL if user pressed back/forward on browser
+     * @listens window:popstate
+     */
+    window.addEventListener('popstate', () => {
+        currentPath = window.location.pathname;
+        executeRouteHandlers();
+    });
+
+    /**
+     * Check fuction for URL that match pattern that defind from parameters
+     * @private
+     * @param {string} pattern - Route pattern ('/user/:id', '/blog/[...slug]')
+     * @param {string} path - URL path browser
+     * @returns {Object|null} - { params: Object, match: boolean } or null if no match
+     * 
+     * @example
+     * matchRoute('/user/:id', '/user/123') // returns { params: { id: '123' }, match: true }
+     * matchRoute('/blog/[...slug]', '/blog/react/2024') // returns { params: { slug: 'react/2024' }, match: true }
+     */
+    function matchRoute(pattern, path) {
+        const patternParts = pattern.split('/').filter(Boolean);
+        const pathParts = path.split('/').filter(Boolean);
+
+        if (patternParts.length !== pathParts.length && !pattern.includes('[...')) {
+            return null;
+        }
+
+        const params = {};
+
+        for (let i = 0; i < patternParts.length; i++) {
+            if (patternParts[i].startsWith(':')) {
+                // Dynamic parameter
+                const paramName = patternParts[i].substring(1);
+                params[paramName] = decodeURIComponent(pathParts[i] || '');
+            } else if (patternParts[i].startsWith('[...') && patternParts[i].endsWith(']')) {
+                // Catch-all parameter
+                const paramName = patternParts[i].substring(4, patternParts[i].length - 1);
+                params[paramName] = decodeURIComponent(pathParts.slice(i).join('/') || '');
+                return { params, match: true };
+            } else if (patternParts[i] !== pathParts[i]) {
+                // Static part doesn't match
+                return null;
+            }
+        }
+
+        return { params, match: true };
+    }
+
+    /**
+     * Call callback functions that match current route
+     * @private
+     */
+    function executeRouteHandlers() {
+        let matched = false;
+
+        for (const handler of routeHandlers) {
+            const match = matchRoute(handler.pattern, currentPath);
+            if (match) {
+                currentParams = match.params;
+                handler.callback(match.params);
+                matched = true;
+                break;
+            }
+        }
+
+        if (!matched && notFoundHandler) {
+            notFoundHandler(currentPath);
+        }
+    }
+
+    // Create a public API
+    return {
+        /**
+         * Register route pattern and callback function
+         * @param {string} pattern - Route pattern string
+         * @param {Function} callback - Function when directly call to route
+         * @param {Object} callback.params - Parameters from URL
+         * @returns {Router} - Router instance for method chaining
+         */
+        route(pattern, callback) {
+            routeHandlers.push({ pattern, callback });
+            return this;
+        },
+
+        /**
+         * define handler when route not found
+         * @param {Function} callback - Function when route not found
+         * @param {string} callback.path - Undefinded path 
+         * @returns {Router} - Router instance for method chaining
+         */
+        notFound(callback) {
+            notFoundHandler = callback;
+            return this;
+        },
+
+        /**
+         * Chenge route to path
+         * @param {string} path - new path that navigate to
+         */
+        navigate(path) {
+            window.history.pushState({}, '', path);
+            currentPath = path;
+            executeRouteHandlers();
+        },
+
+        /**
+         * Get current parameters to URL
+         * @returns {Object} - Copy parameters object
+         */
+        getParams() {
+            return { ...currentParams };
+        },
+
+        /**
+         * Fetch path to current URL
+         * @returns {string} - Current URL path
+         */
+        getPath() {
+            return currentPath;
+        },
+
+        /**
+         * Start routing system
+         * @returns {Router} - Router instance for method chaining
+         */
+        init() {
+            executeRouteHandlers();
+            return this;
+        }
+    };
+})();
+
+/**
+ * Programmatic navigation helper function
+ * @param {string} path - Path that you want to navigate
+ */
+export function navigate(path) {
+    Router.navigate(path);
+}
+
+/**
+ * Link component for navigation without page reload
+ * @param {Object} props - Component properties
+ * @param {string} props.to - Destination path
+ * @param {...any} children - Child elements หรือ content
+ * @returns {Object} - Virtual DOM element
+ */
+export function Link(props, ...children) {
+    return createElement('a', {
+        href: props.to,
+        onClick: (e) => {
+            e.preventDefault();
+            navigate(props.to);
+        },
+        ...props
+    }, ...children);
+}
+
+/**
+ * Higher-Order Component for components that want to access route information
+ * @param {Function} Component - Component function that want to wrap
+ * @returns {Function} - Wrapped component router props
+ */
+export function withRouter(Component) {
+    return (props) => {
+        const state = createState({
+            path: Router.getPath(),
+            params: Router.getParams()
+        });
+
+        const unsubscribe = Router.route('*', (params) => {
+            state.set({
+                path: Router.getPath(),
+                params: Router.getParams()
+            });
+        });
+
+        const originalOnUnmount = props.onUnmount;
+        props.onUnmount = () => {
+            unsubscribe();
+            if (originalOnUnmount) originalOnUnmount();
+        };
+
+        return Component({ ...props, router: state.get() });
+    };
+}
+
+/*
+    Usage:
+    
+    import { Mint, Router, navigate, Link } from "./mint.js";
+    // Define routes
+    Router
+        .route('/', () => {
+            Mint.injectHTML("#app", `
+                <h1>Home Page</h1>
+                <p>Welcome to the homepage</p>
+            `);
+        })
+        .route('/about', () => {
+            Mint.injectHTML("#app", `
+                <h1>About Page</h1>
+                <p>This is the about page</p>
+            `);
+        })
+        .route('/user/:id', (params) => {
+            Mint.injectHTML("#app", `
+                <h1>User Profile</h1>
+                <p>User ID: ${params.id}</p>
+            `);
+        })
+        .init();
+
+    // Using navigation
+    document.getElementById('home-btn').addEventListener('click', () => {
+        navigate('/');
+    });
+
+    // Using Link component
+    const navigation = Mint.createElement(Mint.Link, { to: '/about' }, 'Go to About');
+    Mint.injectHTML("#nav", navigation);
+
+    After that you can use this to create your another page like SPA:
+
+    Router
+        .route('/', () => showHomePage())
+        .route('/about', () => showAboutPage())
+        .route('/user/:id', (params) => showUserProfile(params.id))
+        .route('/products/[...category]', (params) => showProducts(params.category));
+
+*/
