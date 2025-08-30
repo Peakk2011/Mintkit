@@ -650,7 +650,6 @@ export function injectHTML(targetSelector, htmlContent, options = {}) {
 */
 function removeEventHandlers(node) {
     if (node.nodeType === Node.ELEMENT_NODE) {
-        // ลบ所有 event attributes
         const attributes = node.getAttributeNames();
         for (const attr of attributes) {
             if (attr.startsWith('on') && attr.length > 2) {
