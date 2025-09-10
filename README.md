@@ -13,6 +13,9 @@ It simplifies the website creation process while maintaining flexibility and per
 Mintkit eliminates the need for multiple libraries and frameworks by providing everything you need in one cohesive package.  
 Whether you're building a simple website or a complex web application, Mintkit's intuitive API and powerful features make development more efficient and enjoyable. 🚀
 
+## ⭐ Additional documents
+[Get Started with Mintkit framework](https://amaikoe.nekosakura.work/blog/getting-started-mintkit)
+
 ## 🔧 Core Features
 
 ### 🎯 State Management & Virtual DOM
