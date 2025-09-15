@@ -5,38 +5,38 @@
 
 <h1 align="center">Mintkit</h1>
 
-## 📚 About Mintkit 
+## About Mintkit 
 Mintkit is a moderate JavaScript framework that simplifies web development by combining dynamic content management features in a single, easy-to-use, intuitive tool with
 a simplifies the website creation process while maintaining flexibility and performance, allowing you to focus on creating innovative web applications smoothly.
 
-## 💡 Why Choose Mintkit?
+## Why Choose Mintkit?
 Mintkit eliminates the need for multiple libraries and frameworks by providing everything you need in one cohesive package
 Whether you are building a simple website or a complex web application, Mintkit can take action and make you happy to create with it.
 
-## ⭐ Additional documents
+## Additional documents
 [Get Started with Mintkit framework](https://amaikoe.nekosakura.work/blog/getting-started-mintkit)
 
-## 🔧 Core Features
+## Features
 
-### 🎯 State Management & Virtual DOM
+### State Management & Virtual DOM
 - **Reactive State System**: Automatic re-rendering when state changes
 - **Virtual DOM**: Efficient DOM diffing and patching
 - **Component Architecture**: Modular and reusable components
 
-### 🎨 Design System
+### Design System
 - **Typography**: Google Fonts integration with comprehensive font system
 - **Spacing Scale**: Consistent spacing from 0-32rem
 - **Theme System**: Automatic light/dark theme switching
 - **Responsive Design**: Built-in breakpoint system
 - **Animation**: Smooth transitions and keyframes
 
-### 🛠️ Development Tools
+### Development Tools
 - **Live Reload**: Hot reloading development server
 - **MintAssembly**: HTML-based programming language
 - **Electron Support**: Desktop application framework
 - **Performance Monitoring**: Built-in performance tracking
 
-## 🚀 Quick Start
+## Get Started
 
 ### 1. Basic Setup
 ```html
@@ -151,7 +151,7 @@ const darkTheme = {
 WebContent.initThemeSystem();
 ```
 
-## 🔧 Development
+## Development
 
 ### Live Reload Server
 ```bash
@@ -160,7 +160,7 @@ cd mintkit
 # Open http://localhost:3000
 ```
 
-## 📁 Project Structure
+## Project Structure
 ```
 Mintkit.js Framework/
 ├── src/                           # Framework path
@@ -176,11 +176,11 @@ Mintkit.js Framework/
 └── sw.js                          # Service worker
 ```
 
-## 🌟 Contributing
+## Contributing
 
 We welcome all contributions to **Mintkit**! Here's how you can help to improve:
 
-### 🔧 How to Contribute
+### How to Contribute
 
 1. **Fork** this repository and clone it to your local machine.
 2. **Create** a new branch for your changes.
@@ -189,7 +189,7 @@ We welcome all contributions to **Mintkit**! Here's how you can help to improve:
 5. **Commit** your changes with clear, concise commit messages.
 6. **Push** your changes and create a pull request with a detailed explanation.
 
-### 📋 Contribution Guidelines
+### Contribution Guidelines
 
 - **Code Style**: Follow the existing code style and conventions
 - **Documentation**: Update documentation for any new features
@@ -197,7 +197,7 @@ We welcome all contributions to **Mintkit**! Here's how you can help to improve:
 - **Performance**: Consider performance implications of changes
 - **Compatibility**: Ensure changes work across different browsers
 
-## 🔗 Links
+## Links
 
 - **GitHub Repository**: https://github.com/Peakk2011/Mintkit
 - **CDN**: https://cdn.jsdelivr.net/gh/Peakk2011/Mint_NextgenJS@main/lib/MintUtils.js
