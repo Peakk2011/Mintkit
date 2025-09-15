@@ -6,12 +6,12 @@
 <h1 align="center">Mintkit</h1>
 
 ## 📚 About Mintkit 
-Mintkit is a comprehensive JavaScript framework designed to streamline web development by providing dynamic content management capabilities in a single, unified solution.  
-It simplifies the website creation process while maintaining flexibility and performance, allowing you to focus on creating innovative web applications. 🌐✨
+Mintkit is a moderate JavaScript framework that simplifies web development by combining dynamic content management features in a single, easy-to-use, intuitive tool with
+a simplifies the website creation process while maintaining flexibility and performance, allowing you to focus on creating innovative web applications smoothly.
 
 ## 💡 Why Choose Mintkit?
-Mintkit eliminates the need for multiple libraries and frameworks by providing everything you need in one cohesive package.  
-Whether you're building a simple website or a complex web application, Mintkit's intuitive API and powerful features make development more efficient and enjoyable. 🚀
+Mintkit eliminates the need for multiple libraries and frameworks by providing everything you need in one cohesive package
+Whether you are building a simple website or a complex web application, Mintkit can take action and make you happy to create with it.
 
 ## ⭐ Additional documents
 [Get Started with Mintkit framework](https://amaikoe.nekosakura.work/blog/getting-started-mintkit)
