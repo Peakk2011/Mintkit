@@ -1,6 +1,8 @@
 /**
  * Mintkit Framework Core
  * Waring if you edit when wrong framework cant be use
+ * Copyright © 2025 Mint teams
+ * Licensed under the MIT License
  */
 
 export const pipe = function () {

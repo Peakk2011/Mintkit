@@ -1,3 +1,6 @@
+// Copyright © 2025 Mint teams
+// Licensed under the MIT License
+
 import {
     // Core DOM/Content
     injectCSS,

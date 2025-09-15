@@ -1,3 +1,6 @@
+// Copyright © 2025 Mint teams
+// Licensed under the MIT License
+
 function legacyMintAssembly(opts) {
     const HEAP_SIZE = 65536;
     const STACK_SIZE = 8192;

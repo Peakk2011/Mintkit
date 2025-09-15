@@ -1,4 +1,7 @@
 // HTMLInterpreter.js - MintAssembly
+// Copyright © 2025 Mint teams
+// Licensed under the MIT License
+
 const defaultFilters = {
   currency: val => `$${parseFloat(val).toFixed(2)}`,
   truncate: (val, len = 100) => val.length > len ? val.slice(0, len) + '...' : val,
@@ -346,7 +349,7 @@ export function MintAssembly({ context = {}, filters = {}, debug = false, templa
 
     try {
       [...entry.childNodes].forEach(child => renderNode(child, finalContext, container));
-      
+
       if (context.mounted) context.mounted();
 
       if (debug) console.log('[MintAssembly] Mount completed successfully');

@@ -1,4 +1,7 @@
 <!-- 
+    Copyright © 2025 Mint teams
+    Licensed under the MIT License   
+
     MintAssembly example with usage examples and basic systems for this system as well
     It is a product and Wishlist system, shopping cart system and user system
     It will use the MintAssembly system structure and this is an example for
@@ -45,7 +48,7 @@
 
         function renderUI() {
             const isInWishlist = state.isInWishlist(state.product.id);
-            
+
             const html = `
                 <div class="product-card">
                     <div class="product-name">${state.product.name}</div>
@@ -75,7 +78,7 @@
                     </div>
                 </div>
             `;
-            
+
             Mint.injectHTML('#app', html);
         }
 

@@ -1,4 +1,6 @@
 /**
+ * Copyright © 2025 Mint teams
+ * Licensed under the MIT License
  * Mintkit Framework Core (lite version)
  * Updated: 08/30/2025
  * Features that essentials only my goes here making it lightweight and fast.
