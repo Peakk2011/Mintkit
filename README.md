@@ -207,3 +207,6 @@ We welcome all contributions to **Mintkit**! Here's how you can help to improve:
 
 `npx create-mint-app` to create Mintkit project <br>
 **Mintkit** - Making web development dynamic and more customizable way.
+
+## License
+This project is licensed under the MIT License go and see the [LICENSE](./LICENSE) file for details.
