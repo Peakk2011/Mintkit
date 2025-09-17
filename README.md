@@ -14,7 +14,7 @@ Mintkit eliminates the need for multiple libraries and frameworks by providing e
 Whether you are building a simple website or a complex web application, Mintkit can take action and make you happy to create with it.
 
 ## Additional documents
-[Get Started with Mintkit framework](https://amaikoe.nekosakura.work/blog/getting-started-mintkit)
+[Get Started with Mintkit framework]([https://amaikoe.nekosakura.work/blog/getting-started-mintkit](https://amaikoe.nekosakura.work/blog/en/getting-started-mintkit))
 
 ## Features
 
