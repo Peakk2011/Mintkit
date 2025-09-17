@@ -209,4 +209,4 @@ We welcome all contributions to **Mintkit**! Here's how you can help to improve:
 **Mintkit** - Making web development dynamic and more customizable way.
 
 ## License
-This project is licensed under the MIT License go and see the [LICENSE](./LICENSE) file for details.
+This project is licensed under the MIT License go and see the [LICENSE](./LICENSE.md) file for details.
