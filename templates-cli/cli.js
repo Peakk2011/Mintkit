@@ -195,8 +195,8 @@ const yesFlag = getFlag('yes');
         description: `A Mintkit.js application - ${projectName}`,
         main: srcDir ? "src/index.html" : "index.html",
         scripts: {
-            "start": "LiveServer.exe",
-            "dev": "LiveServer.exe",
+            "start": "src\\LiveServer.exe",
+            "dev": "src\\LiveServer.exe",
             "build": "echo 'Build completed'"
         },
         keywords: ["mintkit", "vanilla-js", "web-framework"],

@@ -1,13 +1,17 @@
 // Copyright © 2025 Mint teams
 // Licensed under the MIT License
 
+/**
+ * @namespace Mint
+ * @description Main Mintkit framework exports.
+ */
+
 import {
-    // Core DOM/Content
     injectCSS,
     injectHTML,
+    inject,
     injectTitle,
-    createState, // vDom
-    // Utility
+    createState,
     get,
     include,
     processIncludes,
@@ -16,53 +20,42 @@ import {
     ReloadPerformanceTracker,
     getInjectionStats,
     clearInjectionCache,
-    // Functional Utilities
     pipe,
     compose,
-    // General Utilities Object
     MintUtils,
-    // Routing exports
     Router,
     navigate,
     Link,
     withRouter
-} from './MintUtils.js';
-import { MintAssembly } from './HTMLInterpreter.js';
+} from './mintkit.js';
+import { MintAssembly } from './mintassembly.js';
+import './event.js';
+
+// Mintkit
 
 export const Mint = {
     createState,
-    // Injection (main)
     injectCSS,
     injectHTML,
+    inject,
     injectTitle,
     get,
     include,
     processIncludes,
-    // AdjustHook, if you using Mintkit liveserver you can uncomment this line
     MintAssembly,
-    // Routing
     Router,
     navigate,
-    Link
-};
-
-export const Utility = {
-    pipe, // Functional programming
-    compose,
-    // Performance Monitoring
+    Link,
+    withRouter,
+    AdjustHook,
     PerformanceMonitor,
     ReloadPerformanceTracker,
     getInjectionStats,
     clearInjectionCache,
-    // General
+    pipe,
+    compose,
     MintUtils,
-    // Routing utilities
-    withRouter
+    init: (fn) => queueMicrotask(fn)
 };
 
-// Direct Named Exports
-export * from './MintUtils.js';
-export { MintAssembly } from './HTMLInterpreter.js';
-
-// Export routing functions directly
-export { Router, navigate, Link, withRouter };
+export const event = null;
