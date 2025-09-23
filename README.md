@@ -173,19 +173,35 @@ cd mintkit
 
 ## Project Structure
 
-```
-Mintkit.js Framework/
-├── src/                           # Framework path
-│   ├── lib/                       # Framework core files
-│   ├── Content.js                 # Content and styling
-│   ├── App.js                     # Main application
-│   ├── EventHandle.js             # Events
-│   └── index.html                 # Entry point
-│   └── LiveServer.exe             # Live server
-├── live-reload.js                 # Live reload for Mintkit liveserver hook
-├── package.json                   # Json file config for Mintkit
-└── README.html                    # Documentation
-└── sw.js                          # Service worker
+```mermaid
+flowchart TD
+    A[Usage] --> B[mintkit-implementation]
+    B --> C[Framework]
+    
+    C --> D[event.js]
+    C --> E[mint.d.ts]
+    C --> F[mint.js]
+    C --> G[mintassembly.js]
+    C --> H[mintkit.js]
+    
+    B --> I[redistributables]
+    I --> J[index.html]
+    
+    B --> K[LiveServer.exe]
+    B --> L[LiveServer.o]
+    
+    style A fill:#2196F3,stroke:#1976D2,stroke-width:3px,color:#ffffff
+    style B fill:#9C27B0,stroke:#7B1FA2,stroke-width:3px,color:#ffffff
+    style C fill:#FF9800,stroke:#F57C00,stroke-width:3px,color:#ffffff
+    style D fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#ffffff
+    style E fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#ffffff
+    style F fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#ffffff
+    style G fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#ffffff
+    style H fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#ffffff
+    style I fill:#00BCD4,stroke:#0097A7,stroke-width:3px,color:#ffffff
+    style J fill:#FFC107,stroke:#FF8F00,stroke-width:2px,color:#000000
+    style K fill:#F44336,stroke:#D32F2F,stroke-width:2px,color:#ffffff
+    style L fill:#F44336,stroke:#D32F2F,stroke-width:2px,color:#ffffff
 ```
 
 ## Contributing
@@ -212,12 +228,12 @@ We welcome all contributions to **Mintkit**! Here's how you can help to improve:
 ## Links
 
 - **GitHub Repository**: https://github.com/Peakk2011/Mintkit
-- **CDN**: https://cdn.jsdelivr.net/gh/Peakk2011/Mint_NextgenJS@main/lib/MintUtils.js
-- **Documentation**: [Complete Guide](documents/MintkitJS_EXPLAIN.MD)
+- **CDN**: https://cdn.jsdelivr.net/gh/Peakk2011/Mintkit@main/plugins/core/lib/mint.js
 
 ---
 
 `npx create-mint-app` to create Mintkit project <br>
+
 **Mintkit** - Making web development dynamic and more customizable way.
 
 ## License
