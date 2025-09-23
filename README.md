@@ -15,7 +15,10 @@ Mintkit eliminates the need for multiple libraries and frameworks by providing e
 Whether you are building a simple website or a complex web application, Mintkit can take action and make you happy to create with it.
 
 ## Additional documents
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1369eafd97a8899d68d6b3aad2f34dfefcdf47b4
 [Get Started with Mintkit framework](https://amaikoe.nekosakura.work/blog/en/getting-started-mintkit)
 
 ## Features
@@ -221,5 +224,4 @@ We welcome all contributions to **Mintkit**! Here's how you can help to improve:
 **Mintkit** - Making web development dynamic and more customizable way.
 
 ## License
-
 This project is licensed under the MIT License go and see the [LICENSE](./LICENSE.md) file for details.
