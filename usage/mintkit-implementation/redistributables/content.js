@@ -4,14 +4,14 @@ import { WebElements } from './design/units.js';
 export const WebContent = {
     components: `
         <!-- Enter html code here -->
-        <button>Hello mintkit</button>
+        <button>Test</button>
     `,
     stylesheet: `
         /*
             Enter your CSS code here 
             With Mintkit user-agent-stylesheet build-in
         */
-    `
-}
+    `,
+};
 
 // ${WebConfig.cssReset} with UAS with JS reset

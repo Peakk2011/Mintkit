@@ -18,7 +18,7 @@
  * @returns {Event} The event instance for chaining.
  */
 
-Event.prototype.on = function(target) {
+Event.prototype.on = function (target) {
     // The `on` method now returns a Promise directly, triggering the event.
     this._promise = new Promise((resolve, reject) => {
         setTimeout(async () => {
@@ -26,7 +26,8 @@ Event.prototype.on = function(target) {
                 let element;
                 if (typeof target === 'string') {
                     element = document.querySelector(target);
-                    if (!element) throw new Error(`Element not found: ${target}`);
+                    if (!element)
+                        throw new Error(`Element not found: ${target}`);
                 } else {
                     element = target;
                 }
@@ -39,12 +40,11 @@ Event.prototype.on = function(target) {
                 const context = {
                     el: element,
                     fire: () => element.dispatchEvent(this),
-                    event: this
+                    event: this,
                 };
 
-                context.fire();    // Fire the event
-                resolve(context);  // Resolve the promise with the context
-
+                context.fire(); // Fire the event
+                resolve(context); // Resolve the promise with the context
             } catch (error) {
                 reject(error);
             }
@@ -60,7 +60,7 @@ Event.prototype.on = function(target) {
  * @param {number} ms - The delay time in milliseconds.
  * @returns {Event} The event instance for chaining.
  */
-Event.prototype.delay = function(ms) {
+Event.prototype.delay = function (ms) {
     this._delay = parseInt(ms, 10) || 0;
     return this;
 };
@@ -80,7 +80,7 @@ Event.prototype.then = function (callback) {
  * @param {function(Error): any} errorHandler - The function to handle any errors.
  * @returns {Promise<any>} A new promise for error handling.
  */
-Event.prototype.catch = function(errorHandler) {
+Event.prototype.catch = function (errorHandler) {
     return this._promise.catch(errorHandler);
 };
 
@@ -89,11 +89,13 @@ Event.prototype.catch = function(errorHandler) {
  * @param {Array<string|EventTarget>} targets - An array of CSS selectors or DOM elements.
  * @returns {Promise<Array<EventContext>>} A promise that resolves with an array of the event contexts.
  */
-Event.prototype.all = function(targets) {
+Event.prototype.all = function (targets) {
     if (!Array.isArray(targets)) {
-        return Promise.reject(new TypeError('.all() expects an array of targets.'));
+        return Promise.reject(
+            new TypeError('.all() expects an array of targets.')
+        );
     }
-    const promises = targets.map(target => {
+    const promises = targets.map((target) => {
         // Create a new event instance for each target and call .on()
         return new this.constructor(this.type, this).on(target)._promise;
     });

@@ -1,12 +1,13 @@
 /**
  * Mintkit design system
- * Redistributables folder stored web data,design,units here 
+ * Redistributables folder stored web data,design,units here
  */
 import { Mint } from '../../framework/mintkitLite.js';
 
 // Typography Configuration
 const typography = {
-    fontImport: "@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@100..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Manrope:wght@200..800&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Trirong:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');",
+    fontImport:
+        "@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@100..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Manrope:wght@200..800&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Trirong:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');",
     // From Fontshare
     htmlFontsImport: `
         <link href="https://api.fontshare.com/v2/css?f[]=general-sans@200,201,300,301,400,401,500,501,600,601,700,701,1,2&display=swap" rel="stylesheet">
@@ -18,7 +19,7 @@ const typography = {
             anuphan: '"Anuphan", sans-serif',
             manrope: '"Manrope", sans-serif',
             instrumentSans: '"Instrument Sans", sans-serif',
-            generalSans: '"General Sans", sans-serif'
+            generalSans: '"General Sans", sans-serif',
         },
         serif: {
             merriweather: '"Merriweather", serif',
@@ -27,10 +28,11 @@ const typography = {
         },
         mono: {
             jetbrains: '"JetBrains Mono", monospace',
-        }
+        },
     },
 
-    systemFallback: '"Leelawadee UI", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif',
+    systemFallback:
+        '"Leelawadee UI", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", sans-serif',
 
     weights: {
         light: '300',
@@ -38,32 +40,32 @@ const typography = {
         medium: '500',
         semibold: '600',
         bold: '700',
-        extrabold: '800'
-    }
+        extrabold: '800',
+    },
 };
 
 // Spacing Configuration
 const spacing = {
     0: '0',
     px: '1px',
-    0.5: '0.125rem',    // 2px
-    1: '0.25rem',       // 4px
-    1.5: '0.375rem',    // 6px
-    2: '0.5rem',        // 8px
-    2.5: '0.625rem',    // 10px
-    3: '0.75rem',       // 12px
-    3.5: '0.875rem',    // 14px
-    4: '1rem',          // 16px
-    5: '1.25rem',       // 20px
-    6: '1.5rem',        // 24px
-    7: '1.75rem',       // 28px
-    8: '2rem',          // 32px
-    10: '2.5rem',       // 40px
-    12: '3rem',         // 48px
-    16: '4rem',         // 64px
-    20: '5rem',         // 80px
-    24: '6rem',         // 96px
-    32: '8rem',         // 128px
+    0.5: '0.125rem', // 2px
+    1: '0.25rem', // 4px
+    1.5: '0.375rem', // 6px
+    2: '0.5rem', // 8px
+    2.5: '0.625rem', // 10px
+    3: '0.75rem', // 12px
+    3.5: '0.875rem', // 14px
+    4: '1rem', // 16px
+    5: '1.25rem', // 20px
+    6: '1.5rem', // 24px
+    7: '1.75rem', // 28px
+    8: '2rem', // 32px
+    10: '2.5rem', // 40px
+    12: '3rem', // 48px
+    16: '4rem', // 64px
+    20: '5rem', // 80px
+    24: '6rem', // 96px
+    32: '8rem', // 128px
 };
 
 // Layout Configuration
@@ -76,14 +78,14 @@ const layout = {
         base: '0',
         dropdown: '1000',
         modal: '1050',
-        tooltip: '1100'
+        tooltip: '1100',
     },
 
     overflow: {
         hidden: 'hidden',
         scroll: 'scroll',
-        auto: 'auto'
-    }
+        auto: 'auto',
+    },
 };
 
 const breakpoints = {
@@ -101,7 +103,7 @@ const breakpoints = {
     md: '768px',
     lg: '1024px',
     xl: '1280px',
-    '2xl': '1536px'
+    '2xl': '1536px',
 };
 
 const mediaQueries = {
@@ -115,19 +117,19 @@ const mediaQueries = {
     tabletLarge: `(min-width: ${breakpoints.tabletLarge})`,
     desktop: `(min-width: ${breakpoints.desktop})`,
     desktopLarge: `(min-width: ${breakpoints.desktopLarge})`,
-    ultrawide: `(min-width: ${breakpoints.ultrawide})`
+    ultrawide: `(min-width: ${breakpoints.ultrawide})`,
 };
 
 const borderRadius = {
     none: '0',
-    sm: '0.125rem',     // 2px
-    base: '0.25rem',    // 4px
-    md: '0.375rem',     // 6px
-    lg: '0.5rem',       // 8px
-    xl: '0.75rem',      // 12px
-    '2xl': '1rem',      // 16px
-    '3xl': '1.5rem',    // 24px
-    full: '100vmax'
+    sm: '0.125rem', // 2px
+    base: '0.25rem', // 4px
+    md: '0.375rem', // 6px
+    lg: '0.5rem', // 8px
+    xl: '0.75rem', // 12px
+    '2xl': '1rem', // 16px
+    '3xl': '1.5rem', // 24px
+    full: '100vmax',
 };
 
 const shadows = {
@@ -138,7 +140,7 @@ const shadows = {
     lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
     xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
     '2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
-    inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)'
+    inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)',
 };
 
 // Animation & Transitions
@@ -150,7 +152,7 @@ const animation = {
         colors: 'color, background-color, border-color, text-decoration-color, fill, stroke 150ms cubic-bezier(0.4, 0, 0.2, 1)',
         opacity: 'opacity 150ms cubic-bezier(0.4, 0, 0.2, 1)',
         shadow: 'box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-        transform: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)'
+        transform: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
     },
 
     easings: {
@@ -159,15 +161,15 @@ const animation = {
         out: 'cubic-bezier(0, 0, 0.2, 1)',
         inOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
         bounce: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-        smooth: 'cubic-bezier(0.19, 1, 0.22, 1)'
+        smooth: 'cubic-bezier(0.19, 1, 0.22, 1)',
     },
 
     duration: {
         fast: '100ms',
         base: '150ms',
         slow: '300ms',
-        slower: '500ms'
-    }
+        slower: '500ms',
+    },
 };
 
 const units = {
@@ -178,7 +180,7 @@ const units = {
         pc: 'pc',
         in: 'in',
         cm: 'cm',
-        mm: 'mm'
+        mm: 'mm',
     },
 
     // Relative Units
@@ -192,14 +194,14 @@ const units = {
         vmax: 'vmax',
         maxContent: 'max-content',
         minContent: 'min-content',
-        fitContent: 'fit-content'
+        fitContent: 'fit-content',
     },
 
     // Special Values
     auto: 'auto',
     inherit: 'inherit',
     initial: 'initial',
-    unset: 'unset'
+    unset: 'unset',
 };
 
 export const WebElements = {
@@ -242,7 +244,8 @@ export const WebElements = {
             const breakpointKeys = Object.keys(breakpoints);
             return breakpointKeys.reduce((acc, bp, index) => {
                 if (values[bp]) {
-                    const query = index === 0 ? '' : `@media ${mediaQueries[bp]}`;
+                    const query =
+                        index === 0 ? '' : `@media ${mediaQueries[bp]}`;
                     acc[query] = values[bp];
                 }
                 return acc;
@@ -261,10 +264,13 @@ export const WebElements = {
             const shadow = shadows[shadowKey];
             if (!shadow || shadow === 'none') return shadow;
 
-            return shadow.replace(/rgb\(0 0 0 \/ ([\d.]+)\)/g, (match, currentOpacity) => {
-                const newOpacity = parseFloat(currentOpacity) * opacity;
-                return `rgb(0 0 0 / ${newOpacity})`;
-            });
+            return shadow.replace(
+                /rgb\(0 0 0 \/ ([\d.]+)\)/g,
+                (match, currentOpacity) => {
+                    const newOpacity = parseFloat(currentOpacity) * opacity;
+                    return `rgb(0 0 0 / ${newOpacity})`;
+                }
+            );
         },
 
         createMediaQuery: (breakpoint, type = 'min') => {
@@ -278,7 +284,9 @@ export const WebElements = {
             const fontFamily = typography.families[category]?.[font];
             if (!fontFamily) return typography.systemFallback;
 
-            return withFallback ? `${fontFamily}, ${typography.systemFallback}` : fontFamily;
+            return withFallback
+                ? `${fontFamily}, ${typography.systemFallback}`
+                : fontFamily;
         },
 
         createKeyframes: (name, keyframes) => {
@@ -295,8 +303,8 @@ export const WebElements = {
         },
 
         getSpacingMultiple: (...values) => {
-            return values.map(value => spacing[value] || '0').join(' ');
-        }
+            return values.map((value) => spacing[value] || '0').join(' ');
+        },
     },
 
     legacy: {
@@ -309,11 +317,11 @@ export const WebElements = {
             typography.families.mono.jetbrains,
             typography.families.sans.manrope,
             typography.families.sans.instrumentSans,
-            typography.families.serif.sourceSerif
+            typography.families.serif.sourceSerif,
         ],
         DefaultFontFallback: typography.systemFallback,
-        DirectThemes: [mediaQueries.darkMode, mediaQueries.lightMode]
-    }
+        DirectThemes: [mediaQueries.darkMode, mediaQueries.lightMode],
+    },
 };
 
 export const Design = {
@@ -334,7 +342,8 @@ export const Design = {
         fontSmooth: 'always',
         textSizeAdjust: '100%',
         tabSize: '4',
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif',
+        fontFamily:
+            "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         lineHeight: '1.6',
         headingLineHeight: '1.2',
         fontFeatureSettingsWebkit: '"kern" 1',
@@ -381,8 +390,8 @@ export const Design = {
         maxWidthPrint: '100% !important',
         orphansPrint: '3',
         widowsPrint: '3',
-        pageBreakAfterAvoid: 'avoid'
-    }
+        pageBreakAfterAvoid: 'avoid',
+    },
 };
 
 export default WebElements;
