@@ -1,7 +1,7 @@
 {
   "name": "create-mint-app",
-  "version": "1.0.60",
-  "description": "CLI tool to create a new Mintkit application",
+  "version": "2.0.0",
+  "description": "Mintkit is a web framework designed to deliver efficient, scalable, and maintainable web development experiences.",
   "main": "cli.js",
   "bin": {
     "create-mint-app": "cli.js"
@@ -12,7 +12,8 @@
     "cli",
     "create-app",
     "vanilla-js",
-    "web-framework"
+    "web-framework",
+    "lightweight-framework"
   ],
   "author": {
     "name": "Peakk",

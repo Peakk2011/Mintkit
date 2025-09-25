@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap'
+);
+
+:root {
+    /* Body styles */
+    --body-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --body-bg-color: #faf9f6;
+
+    /* Card styles */
+    --card-bg: #faf9f6;
+    --card-text-align: center;
+
+    /* Card Title styles */
+    --card-title-color: #000000;
+    --card-title-font-size: 64px;
+    --card-title-font-family: "Inter", sans-serif;
+    --card-title-font-weight: 540;
+    --card-title-text-shadow: 0px 5px 20px rgba(82, 82, 82, 0.28);
+    --card-title-margin-bottom: 1.5rem;
+
+    /* Card Paragraph styles */
+    --card-p-color: #242424;
+    --card-p-font-size: 22px;
+    --card-p-font-family: "DM Sans", sans-serif;
+
+    /* Card SVG styles */
+    --card-svg-height: 64px;
+    --card-svg-width: auto;
+    --card-svg-transform: translateY(8px);
+
+    /* Card Span styles */
+    --card-span-color: #000;
+    --card-span-font-size: 18px;
+    --card-span-font-family: "DM Sans", monospace;
+    --card-span-display: block;
+    --card-span-margin-top: 2rem;
+
+    /* Card Code styles */
+    --card-code-font-family: "JetBrains Mono", monospace;
+    --card-code-padding: 0.2rem 0.4rem;
+    --card-code-bg-color: #e3e2df;
+}
+
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--body-font-family);
+    background-color: var(--body-bg-color);
+}
+
+.card {
+    background: var(--card-bg);
+    text-align: var(--card-text-align);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: max-content;
+    max-width: max-content;
+}
+
+.card-title {
+    color: var(--card-title-color);
+    font-size: var(--card-title-font-size);
+    font-family: var(--card-title-font-family);
+    font-weight: var(--card-title-font-weight);
+    text-shadow: var(--card-title-text-shadow);
+    margin-bottom: var(--card-title-margin-bottom);
+}
+
+.card svg {
+    height: var(--card-svg-height);
+    width: var(--card-svg-width);
+    transform: var(--card-svg-transform);
+}
+
+.card p {
+    color: var(--card-p-color);
+    font-size: var(--card-p-font-size);
+    font-family: var(--card-p-font-family);
+}
+
+.card span {
+    color: var(--card-span-color);
+    font-size: var(--card-span-font-size);
+    font-family: var(--card-span-font-family);
+    display: var(--card-span-display);
+    margin-top: var(--card-span-margin-top);
+}
+
+.card span code {
+    font-family: var(--card-code-font-family);
+    padding: var(--card-code-padding);
+    background-color: var(--card-code-bg-color);
+}

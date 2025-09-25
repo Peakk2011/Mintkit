@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    /* Basic Options */
+    "target": "ES2022", 
+    "module": "ESNext", 
+    "outDir": "./dist", 
+    "rootDir": "./src", 
+
+    "strict": true, 
+
+    /* Resolution Options */
+    "moduleResolution": "node", 
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*", "src/types/**/*.d.ts"]
+}

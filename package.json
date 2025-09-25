@@ -1,6 +1,6 @@
 {
-  "name": "mintkit",
-  "version": "0.1.0",
+  "name": "@peakk/mintkit",
+  "version": "2.0.0",
   "description": "Mintkit built with Mint teams",
   "author": {
     "name": "Peakk",
