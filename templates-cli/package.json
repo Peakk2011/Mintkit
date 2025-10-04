@@ -1,6 +1,6 @@
 {
   "name": "create-mint-app",
-  "version": "2.0.0",
+  "version": "2.0.22",
   "description": "Mintkit is a web framework designed to deliver efficient, scalable, and maintainable web development experiences.",
   "main": "cli.js",
   "bin": {

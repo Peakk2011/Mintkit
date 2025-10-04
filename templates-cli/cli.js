@@ -2,8 +2,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execFile } = require('child_process');
+const { spawn } = require('child_process');
 
+// ANSI Color
 const colors = {
     reset: '\x1b[0m',
     white: '\x1b[37m',
@@ -18,6 +19,19 @@ const log = (message, color = 'reset') => {
 const logSuccess = message => log(`${message}`, 'lightGreen');
 const logError = message => log(`${message}`, 'white');
 const logInfo = message => log(`${message}`, 'white');
+
+const askInput = (question) => {
+    return new Promise(resolve => {
+        const rl = require('readline').createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+        rl.question(`${colors.lightBlue}${question}${colors.reset} `, (answer) => {
+            rl.close();
+            resolve(answer);
+        });
+    });
+};
 
 const showSpinner = message => {
     const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -38,7 +52,7 @@ const askList = (question, choices, defaultIndex = 0) => {
         let selected = defaultIndex;
 
         const render = () => {
-            process.stdout.write('\x1Bc'); // clear
+            process.stdout.write('\x1Bc');
             console.log(`${colors.lightBlue}${question}${colors.reset}\n`);
             choices.forEach((choice, i) => {
                 if (i === selected) {
@@ -51,16 +65,16 @@ const askList = (question, choices, defaultIndex = 0) => {
         };
 
         const onKey = key => {
-            if (key === '\u0003') process.exit(); // ctrl+c
-            if (key === '\u001B[A') { // up
+            if (key === '\u0003') process.exit();
+            if (key === '\u001B[A') {
                 selected = (selected - 1 + choices.length) % choices.length;
                 render();
             }
-            if (key === '\u001B[B') { // down
+            if (key === '\u001B[B') {
                 selected = (selected + 1) % choices.length;
                 render();
             }
-            if (key === '\r') { // enter
+            if (key === '\r') {
                 process.stdin.setRawMode(false);
                 process.stdin.removeListener('data', onKey);
                 process.stdout.write('\n');
@@ -73,6 +87,19 @@ const askList = (question, choices, defaultIndex = 0) => {
         process.stdin.resume();
         process.stdin.setEncoding('utf8');
         process.stdin.on('data', onKey);
+    });
+};
+
+const runCommand = (command, args, options) => {
+    return new Promise((resolve, reject) => {
+        const child = spawn(command, args, { stdio: 'inherit', shell: true, ...options });
+        child.on('close', code => {
+            if (code !== 0) {
+                reject({ command: `${command} ${args.join(' ')}` });
+                return;
+            }
+            resolve();
+        });
     });
 };
 
@@ -96,13 +123,18 @@ const copyDirectory = (src, dest, filterFn) => {
 };
 
 (async () => {
-    console.log("Let's build your Mintkit\n");
+    console.log("Let's build your Mintkit application\n");
 
-    const projectName = process.argv[2];
+    const args = process.argv.slice(2);
+    let projectName = args.find(arg => !arg.startsWith('--'));
+    const flags = new Set(args.filter(arg => arg.startsWith('--')));
 
     if (!projectName) {
-        logInfo('Usage: node cli.js <project-name>');
-        process.exit(1);
+        projectName = await askInput('What is your project name?');
+        if (!projectName) {
+            logError('Project name cannot be empty.');
+            process.exit(1);
+        }
     }
 
     if (!/^[a-zA-Z0-9-_]+$/.test(projectName)) {
@@ -110,7 +142,34 @@ const copyDirectory = (src, dest, filterFn) => {
         process.exit(1);
     }
 
-    const lang = (await askList('Which language would you like to use?', ['JavaScript', 'TypeScript'])).toLowerCase();
+    let lang;
+    if (flags.has('--typescript')) {
+        lang = 'typescript';
+    } else if (flags.has('--javascript')) {
+        lang = 'javascript';
+    } else {
+        lang = (await askList('Which language would you like to use?', ['JavaScript', 'TypeScript'])).toLowerCase();
+    }
+
+    let useVite;
+    if (flags.has('--vite')) {
+        useVite = true;
+    } else if (flags.has('--no-vite')) {
+        useVite = false;
+    } else {
+        const useViteAnswer = await askList('Do you want to use Vite for development?', ['Yes', 'No']);
+        useVite = useViteAnswer === 'Yes';
+    }
+
+    let useLinter;
+    if (flags.has('--lint')) {
+        useLinter = true;
+    } else if (flags.has('--no-lint')) {
+        useLinter = false;
+    } else {
+        const useLinterAnswer = await askList('Do you want to add ESLint and Prettier for code quality?', ['Yes', 'No']);
+        useLinter = useLinterAnswer === 'Yes';
+    }
 
     console.log('\nCreating your Mintkit application...');
     const spinner = showSpinner('Setting up project files');
@@ -124,32 +183,184 @@ const copyDirectory = (src, dest, filterFn) => {
         process.exit(1);
     }
 
-    const templateDir = path.join(__dirname, 'mintkit-app', lang);
+    // Find template directory
+    let templateDir = path.join(__dirname, 'mintkit-app');
+    if (!fs.existsSync(templateDir)) {
+        templateDir = path.join(__dirname, 'template');
+    }
 
     if (!fs.existsSync(templateDir)) {
         stopSpinner(spinner);
-        logError(`Template for "${lang}" is not available yet.`);
+        logError('Template directory not found.');
+        logError(`Searched: ${path.join(__dirname, 'mintkit-app')}`);
+        logError(`Also tried: ${path.join(__dirname, 'template')}`);
         process.exit(1);
     }
 
+    // Create project directory
     fs.mkdirSync(projectPath, { recursive: true });
+
+    // Copy common files (exclude language folders and unwanted files)
     copyDirectory(templateDir, projectPath, (entry, srcPath) => {
         const rel = path.relative(templateDir, srcPath).replace(/\\/g, '/');
-        return !rel.startsWith('liveserver/');
+        const excludeDirs = [
+            'liveserver/',
+            'node_modules/',
+            'javascript/',
+            'typescript/',
+            '.git/',
+            'dist/',
+            'package-lock.json',
+            'package.json',
+            'tsconfig.json',
+            'vite.config.js'
+        ];
+        return !excludeDirs.some(dir =>
+            rel.startsWith(dir) || rel === dir.replace('/', '')
+        );
     });
 
+    // Copy language-specific src files
+    const langSourceDir = path.join(templateDir, lang, 'src');
+    const projectSrcDir = path.join(projectPath, 'src');
+
+    if (fs.existsSync(langSourceDir)) {
+        if (!fs.existsSync(projectSrcDir)) {
+            fs.mkdirSync(projectSrcDir, { recursive: true });
+        }
+        copyDirectory(langSourceDir, projectSrcDir);
+    } else {
+        stopSpinner(spinner);
+        logError(`${lang} source directory not found!`);
+        logError(`Expected: ${langSourceDir}`);
+        process.exit(1);
+    }
+
+    // Copy index.html from language folder
+    const langIndexHtml = path.join(templateDir, lang, 'index.html');
+    if (fs.existsSync(langIndexHtml)) {
+        fs.copyFileSync(langIndexHtml, path.join(projectPath, 'index.html'));
+    } else {
+        stopSpinner(spinner);
+        logError(`index.html not found in ${lang} template!`);
+        logError(`Expected: ${langIndexHtml}`);
+        process.exit(1);
+    }
+
+    // Create package.json
     const packageJson = {
         name: projectName,
         version: "1.0.0",
-        description: `A Mintkit.js application - ${projectName}`,
+        description: `A Mintkit framework application - ${projectName}`,
         main: "index.html",
         keywords: ["mintkit", "vanilla-js", "web-framework"],
         author: "Created with create-mint-app",
         license: "MIT",
-        template: 'basic',
-        lang
     };
 
+    // Vite configuration
+    if (useVite) {
+        const viteConfigContent = `import { defineConfig } from 'vite';
+
+export default defineConfig({
+    server: {
+        open: true,
+    },
+});
+`;
+        fs.writeFileSync(path.join(projectPath, 'vite.config.js'), viteConfigContent);
+
+        packageJson.scripts = {
+            "dev": "vite",
+            "build": "vite build",
+            "preview": "vite preview"
+        };
+        packageJson.devDependencies = {
+            "vite": "^5.3.5"
+        };
+    }
+
+    // TypeScript configuration
+    if (useVite && lang === 'typescript') {
+        const tsConfigContent = `{
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}`;
+        fs.writeFileSync(path.join(projectPath, 'tsconfig.json'), tsConfigContent);
+        packageJson.devDependencies.typescript = "^5.5.3";
+        packageJson.scripts['type-check'] = "tsc --noEmit";
+    }
+
+    // ESLint and Prettier
+    if (useLinter) {
+        if (!packageJson.scripts) packageJson.scripts = {};
+        if (!packageJson.devDependencies) packageJson.devDependencies = {};
+
+        Object.assign(packageJson.devDependencies, {
+            "eslint": "^8.57.0",
+            "prettier": "^3.3.3",
+            "eslint-config-prettier": "^9.1.0"
+        });
+
+        const lintExtensions = lang === 'typescript' ? '{js,ts}' : 'js';
+        packageJson.scripts.lint = `eslint "src/**/*.${lintExtensions}"`;
+        packageJson.scripts.format = `prettier --write "src/**/*.{js,ts,html,css}"`;
+
+        const prettierrcContent = `{
+  "semi": true,
+  "tabWidth": 4,
+  "singleQuote": true,
+  "trailingComma": "es5"
+}`;
+        fs.writeFileSync(path.join(projectPath, '.prettierrc'), prettierrcContent);
+
+        const prettierignoreContent = `node_modules\ndist\n`;
+        fs.writeFileSync(path.join(projectPath, '.prettierignore'), prettierignoreContent);
+
+        let eslintrcContent;
+        if (lang === 'typescript') {
+            Object.assign(packageJson.devDependencies, {
+                "@typescript-eslint/eslint-plugin": "^7.17.0",
+                "@typescript-eslint/parser": "^7.17.0"
+            });
+            eslintrcContent = {
+                "parser": "@typescript-eslint/parser",
+                "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended", "prettier"],
+                "plugins": ["@typescript-eslint"],
+                "env": { "browser": true, "es2021": true, "node": true },
+                "parserOptions": { "ecmaVersion": "latest", "sourceType": "module" },
+                "rules": {}
+            };
+        } else {
+            eslintrcContent = {
+                "extends": ["eslint:recommended", "prettier"],
+                "env": { "browser": true, "es2021": true, "node": true },
+                "parserOptions": { "ecmaVersion": "latest", "sourceType": "module" },
+                "rules": {}
+            };
+        }
+        fs.writeFileSync(
+            path.join(projectPath, '.eslintrc.json'),
+            JSON.stringify(eslintrcContent, null, 2)
+        );
+    }
+
+    // Write package.json
     fs.writeFileSync(
         path.join(projectPath, 'package.json'),
         JSON.stringify(packageJson, null, 2)
@@ -159,12 +370,69 @@ const copyDirectory = (src, dest, filterFn) => {
 
     logSuccess(`\nMintkit application ${colors.lightBlue}${projectName}${colors.reset} created successfully!`);
     logInfo('');
-    logInfo('Next steps:');
-    logInfo('   cd ' + projectName);
-    logInfo('   code .');
-    logInfo('   Right-click in VS Code and select "Open with Live Server"');
-    logInfo('   Note: You need the Live Server extension for the best development experience');
+
+    if (useVite) {
+        logInfo('Installing dependencies...');
+        try {
+            await runCommand('npm', ['install'], { cwd: projectPath });
+            logSuccess('Dependencies installed successfully!');
+
+            let startDevServer = flags.has('--live');
+            if (!startDevServer) {
+                const runDevAnswer = await askList('Do you want to start the development server now?', ['Yes', 'No']);
+                if (runDevAnswer === 'Yes') {
+                    startDevServer = true;
+                }
+            }
+
+            if (startDevServer) {
+                logInfo('\nStarting development server...');
+                await runCommand('npm', ['run', 'dev'], { cwd: projectPath });
+            } else {
+                logInfo('\nNext steps:');
+                logInfo(`   cd ${projectName}`);
+                logInfo('   npm run dev');
+            }
+        } catch (error) {
+            logError('Failed to install dependencies.\nRun "npm install" manually.');
+            process.exit();
+        }
+    } else {
+        logInfo('Next steps:');
+        logInfo(`   cd ${projectName}`);
+        logInfo('   code .');
+        logInfo('   Right-click in VS Code and select "Open with Live Server"');
+    }
     logInfo('');
-    logInfo('Happy coding with the Mintkit framework!');
     process.exit();
 })();
+
+/*
+    # To create Mintkit framework follow this instraction
+
+    > Create Javascript + Vite with ESLint & Prettier
+    npx create-mint-app my-mintkit-application --javascript --vite --lint
+
+    > Create TypeScript + Vite with ESLint & Prettier
+    npx create-mint-app my-mintkit-application --typescript --vite --lint
+
+    # Install Mintkit with just your 1 command
+    
+    > With lint and Vite
+    npx create-mint-app my-mintkit-application --typescript --vite --lint --live
+
+    > Without lint and Vite
+    npx create-mint-app my-mintkit-application --typescript --no-vite --no-lint --live
+
+    All flags
+    | --vite
+    | --typescript
+    | --javascript
+    | --live
+    | --lint
+    | --no-vite
+    | --no-lint
+
+    > Default Mintkit install
+    npx create-mint-app@latest
+*/

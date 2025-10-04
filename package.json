@@ -1,6 +1,6 @@
 {
   "name": "@peakk/mintkit",
-  "version": "2.0.0",
+  "version": "2.0.22",
   "description": "Mintkit built with Mint teams",
   "author": {
     "name": "Peakk",
@@ -18,7 +18,7 @@
   },
   "files": [
     "templates-cli/cli.js",
-    "templates-cli/template/**/*"
+    "templates-cli/mintkit-app/**/*"
   ],
   "keywords": [
     "mintkit",
