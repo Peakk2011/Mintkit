@@ -122,6 +122,24 @@ const copyDirectory = (src, dest, filterFn) => {
     });
 };
 
+const processTemplateFile = (srcPath, destPath, replacements) => {
+    let content = fs.readFileSync(srcPath, 'utf8');
+    for (const [key, value] of Object.entries(replacements)) {
+        content = content.replace(key, value);
+    }
+    fs.writeFileSync(destPath, content);
+};
+
+const copyAndProcessDirectory = (src, dest, replacements) => {
+    fs.mkdirSync(dest, { recursive: true });
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+    entries.forEach(entry => {
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
+        entry.isDirectory() ? copyAndProcessDirectory(srcPath, destPath, replacements) : processTemplateFile(srcPath, destPath, replacements);
+    });
+};
+
 (async () => {
     console.log("Let's build your Mintkit application\n");
 
@@ -224,11 +242,17 @@ const copyDirectory = (src, dest, filterFn) => {
     const langSourceDir = path.join(templateDir, lang, 'src');
     const projectSrcDir = path.join(projectPath, 'src');
 
+    const replacements = {};
+    if (useVite) {
+        replacements['// Import app.css'] = '// Import app.css for Vite';
+        replacements[/await Mint\.include\((['"]).*?app\.css\1\);/] = `import './app.css';`;
+    } else {
+        // Adjust path for non-vite setup if needed, but seems correct as is.
+        // The original template has the correct path for non-vite.
+    }
+
     if (fs.existsSync(langSourceDir)) {
-        if (!fs.existsSync(projectSrcDir)) {
-            fs.mkdirSync(projectSrcDir, { recursive: true });
-        }
-        copyDirectory(langSourceDir, projectSrcDir);
+        copyAndProcessDirectory(langSourceDir, projectSrcDir, replacements);
     } else {
         stopSpinner(spinner);
         logError(`${lang} source directory not found!`);

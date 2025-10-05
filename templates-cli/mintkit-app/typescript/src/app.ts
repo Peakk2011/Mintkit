@@ -7,7 +7,7 @@
 
 import { Mint } from "https://mint-teams.web.app/Mintkit/mint.js";
 // Import app.css
-await Mint.include("../src/app.css");
+await Mint.include("./app.css");
 
 /**
  * The root DOM element selector where the application will be mounted.
@@ -20,10 +20,10 @@ const rootPath: string = "#app";
  */
 
 interface IContent {
-    title: string;
-    description: string;
-    keywords: string;
-    edit: string;
+  title: string;
+  description: string;
+  keywords: string;
+  edit: string;
 }
 
 /**
@@ -31,15 +31,15 @@ interface IContent {
  */
 
 const content: IContent = {
-    title: "Mintkit",
-    description: `
+  title: "Mintkit",
+  description: `
         Mintkit is a web framework<br>
         designed to deliver efficient,<br>
         scalable, and maintainable<br>
         web development experiences.
     `,
-    keywords: "Mintkit, JavaScript, framework, web development",
-    edit: "Edit <code>index.html</code> to changes.",
+  keywords: "Mintkit, JavaScript, framework, web development",
+  edit: "Edit <code>index.html</code> to changes.",
 };
 
 /**
@@ -84,14 +84,14 @@ const html: string = `
 Mint.injectTitle(`<title>${content.title}</title>`);
 
 Mint.init(() => {
-    Mint.inject({
-        html: {
-            id: rootPath,
-            location() {
-                return html;
-            },
-        }
-    });
+  Mint.inject({
+    html: {
+      id: rootPath,
+      location() {
+        return html;
+      },
+    },
+  });
 });
 
 // SEO Meta Tag Injection
@@ -103,10 +103,10 @@ Mint.init(() => {
  */
 
 const injectMeta = (name: string, content: string): void => {
-    const meta = document.createElement("meta");
-    meta.name = name;
-    meta.content = content;
-    document.head.appendChild(meta);
+  const meta = document.createElement("meta");
+  meta.name = name;
+  meta.content = content;
+  document.head.appendChild(meta);
 };
 
 injectMeta("description", content.description.replace(/<br\s*\/?>/g, " "));
