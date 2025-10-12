@@ -103,6 +103,19 @@ const runCommand = (command, args, options) => {
     });
 };
 
+const runMintkitElectron = (command, args, options) => {
+    return new Promise((resolve, reject) => {
+        const child = spawn(command, args, { stdio: 'pipe', shell: true, ...options });
+        child.on('close', code => {
+            if (code !== 0) {
+                reject({ command: `${command} ${args.join(' ')}` });
+                return;
+            }
+            resolve();
+        });
+    });
+};
+
 const copyDirectory = (src, dest, filterFn) => {
     if (!fs.existsSync(dest)) {
         fs.mkdirSync(dest, { recursive: true });
@@ -140,6 +153,44 @@ const copyAndProcessDirectory = (src, dest, replacements) => {
     });
 };
 
+const mintkitElectron = async (projectName, repoUrl) => {
+    const currentDir = process.cwd();
+    const projectPath = path.join(currentDir, projectName);
+
+    if (fs.existsSync(projectPath)) {
+        logError(`Directory "${projectName}" already exists!`);
+        process.exit(1);
+    }
+
+    console.log('\nCreating your Mintkit Electron application');
+    const spinner = showSpinner('Cloning repository');
+
+    try {
+        await runMintkitElectron('git', ['clone', repoUrl, projectName], { cwd: currentDir });
+
+        // Remove .git folder
+        const gitFolder = path.join(projectPath, '.git');
+        if (fs.existsSync(gitFolder)) {
+            fs.rmSync(gitFolder, { recursive: true, force: true });
+        }
+
+        stopSpinner(spinner);
+        logSuccess(`\nMintkit Electron application ${colors.lightBlue}${projectName}${colors.reset} created successfully!`);
+        logInfo('');
+        logInfo('Next steps:');
+        logInfo(`   cd ${projectName}`);
+        logInfo('   npm install');
+        logInfo('   npm start');
+        logInfo('');
+        process.exit();
+    } catch (error) {
+        stopSpinner(spinner);
+        logError('Failed to clone repository.');
+        logError('Please make sure git is installed and the repository URL is correct.');
+        process.exit(1);
+    }
+};
+
 (async () => {
     console.log("Let's build your Mintkit application\n");
 
@@ -147,6 +198,28 @@ const copyAndProcessDirectory = (src, dest, replacements) => {
     let projectName = args.find(arg => !arg.startsWith('--'));
     const flags = new Set(args.filter(arg => arg.startsWith('--')));
 
+    // Check for Electron flag first
+    if (flags.has('--electron')) {
+        if (!projectName) {
+            projectName = await askInput('What is your project name?');
+            if (!projectName) {
+                logError('Project name cannot be empty.');
+                process.exit(1);
+            }
+        }
+
+        if (!/^[a-zA-Z0-9-_]+$/.test(projectName)) {
+            logError('Project name can only contain letters, numbers, hyphens, and underscores!');
+            process.exit(1);
+        }
+
+        // Clone Mintkit with Electron
+        const electronRepoUrl = 'https://github.com/Peakk2011/MintkitWithElectron.git';
+        await mintkitElectron(projectName, electronRepoUrl);
+        return;
+    }
+
+    // Original flow for non-Electron projects
     if (!projectName) {
         projectName = await askInput('What is your project name?');
         if (!projectName) {
@@ -432,13 +505,16 @@ export default defineConfig({
 })();
 
 /*
-    # To create Mintkit framework follow this instraction
+    # To create Mintkit framework follow this instruction
 
     > Create Javascript + Vite with ESLint & Prettier
     npx create-mint-app my-mintkit-application --javascript --vite --lint
 
     > Create TypeScript + Vite with ESLint & Prettier
     npx create-mint-app my-mintkit-application --typescript --vite --lint
+
+    > Create Electron application (clones from git repository)
+    npx create-mint-app my-electron-app --electron
 
     # Install Mintkit with just your 1 command
     
@@ -456,6 +532,7 @@ export default defineConfig({
     | --lint
     | --no-vite
     | --no-lint
+    | --electron
 
     > Default Mintkit install
     npx create-mint-app@latest
