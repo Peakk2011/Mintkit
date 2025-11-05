@@ -1,186 +1,423 @@
-// Copyright © 2025 Mint teams
-// Licensed under the MIT License
-// TypeScript definition file for the Mintkit Framework
-// Module definition for 'mintkit' which is the package name.
-// Updated at: 2025-09-23
+/**
+ * Mintkit Framework Core - TypeScript Declaration File
+ * Provides type definitions for the Mintkit framework.
+ *
+ * Copyright © 2025 Mint teams
+ * Licensed under the MIT License
+ */
+
+declare global {
+    /**
+     * Represents the context for a Mintkit event.
+     */
+    interface EventContext<T extends Event = Event> {
+        /** The target DOM element. */
+        el: Element;
+        /** Function to dispatch the event on the target element. */
+        fire: () => void;
+        /** The original event object. */
+        event: T;
+        /** The duration of a long press event in milliseconds. */
+        duration?: number;
+        /** The direction of a swipe event. */
+        direction?: 'left' | 'right' | 'up' | 'down';
+        /** The distance of a swipe in pixels. */
+        distance?: number;
+        /** The velocity of a swipe in pixels per millisecond. */
+        velocity?: number;
+        /** The state of a toggle event ('visible' or 'hidden'). */
+        state?: 'visible' | 'hidden';
+    }
+
+    interface Event {
+        /** The internal promise for handling asynchronous event logic. */
+        _promise: Promise<EventContext>;
+        /** The delay in milliseconds before the event logic is executed. */
+        _delay?: number;
+
+        /**
+         * Sets the target for the event and initializes the event listener.
+         * @param target The CSS selector string or the DOM element to target.
+         * @returns The event instance for chaining.
+         */
+        on(target: string | EventTarget): this;
+
+        /**
+         * Sets a delay in milliseconds before the event is fired.
+         * @param ms The delay time in milliseconds.
+         * @returns The event instance for chaining.
+         */
+        delay(ms: number): this;
+
+        /**
+         * Executes a callback when the event has been successfully processed.
+         * @param callback The function to execute, receiving the event context.
+         * @returns A new promise that resolves with the return value of the callback.
+         */
+        then<TResult1 = EventContext, TResult2 = never>(onfulfilled?: ((value: EventContext) => TResult1 | PromiseLike<TResult1>) | undefined | null): Promise<TResult1 | TResult2>;
+
+        /**
+         * Attaches an error handler to the promise chain.
+         * @param errorHandler The function to handle any errors.
+         * @returns A new promise for error handling.
+         */
+        catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): Promise<EventContext | TResult>;
+
+        /**
+         * Dispatches the event on multiple targets simultaneously.
+         * @param targets An array of CSS selectors or DOM elements.
+         * @returns A promise that resolves with an array of the event contexts.
+         */
+        all(targets: Array<string | EventTarget>): Promise<Array<EventContext>>;
+
+        /**
+         * Listens for a long press (or haptic touch) gesture on a target element.
+         * @param target The CSS selector or DOM element to attach the listener to.
+         * @param duration The minimum duration in milliseconds to qualify as a long press. Defaults to 500ms.
+         * @returns The event instance for chaining.
+         */
+        longPress(target: string | EventTarget, duration?: number): this;
+
+        /**
+         * Detects a swipe gesture on a target element in a specified direction.
+         * @param target The CSS selector or DOM element.
+         * @param direction The direction to detect ('left', 'right', 'up', 'down'). Defaults to 'left'.
+         * @param threshold The minimum swipe distance in pixels. Defaults to 50.
+         * @returns The event instance for chaining.
+         */
+        swipe(target: string | EventTarget, direction?: 'left' | 'right' | 'up' | 'down', threshold?: number): this;
+
+        /**
+         * Listens for a double-click event on a target element.
+         * @param target The CSS selector or DOM element.
+         * @returns The event instance for chaining.
+         */
+        doubleClick(target: string | EventTarget): this;
+
+        /**
+         * Listens for a hover (mouseenter) event on a target element.
+         * @param target The CSS selector or DOM element.
+         * @returns The event instance for chaining.
+         */
+        hover(target: string | EventTarget): this;
+
+        /**
+         * Listens for a right-click (contextmenu) event on a target element.
+         * @param target The CSS selector or DOM element.
+         * @returns The event instance for chaining.
+         */
+        rightClick(target: string | EventTarget): this;
+
+        /**
+         * Shows an element with a transition.
+         * @param target The CSS selector or DOM element.
+         * @param display The CSS display value to apply when shown. Defaults to 'block'.
+         * @param duration The transition duration in milliseconds. Defaults to 300.
+         * @returns The event instance for chaining.
+         */
+        show(target: string | EventTarget, display?: string, duration?: number): this;
+
+        /**
+         * Hides an element with a transition.
+         * @param target The CSS selector or DOM element.
+         * @param duration The transition duration in milliseconds. Defaults to 300.
+         * @returns The event instance for chaining.
+         */
+        hide(target: string | EventTarget, duration?: number): this;
+
+        /**
+         * Toggles the visibility of an element with a transition.
+         * @param target The CSS selector or DOM element.
+         * @param display The CSS display value to apply when showing. Defaults to 'block'.
+         * @param duration The transition duration in milliseconds. Defaults to 300.
+         * @returns The event instance for chaining.
+         */
+        toggle(target: string | EventTarget, display?: string, duration?: number): this;
+
+        /**
+         * Fades in an element.
+         * @param target The CSS selector or DOM element.
+         * @param duration The duration in milliseconds. Defaults to 300.
+         * @returns The event instance for chaining.
+         */
+        fadeIn(target: string | EventTarget, duration?: number): this;
+
+        /**
+         * Fades out an element.
+         * @param target The CSS selector or DOM element.
+         * @param duration The duration in milliseconds. Defaults to 300.
+         * @returns The event instance for chaining.
+         */
+        fadeOut(target: string | EventTarget, duration?: number): this;
+
+        /**
+         * Slides down an element to reveal it.
+         * @param target The CSS selector or DOM element.
+         * @param duration The duration in milliseconds. Defaults to 300.
+         * @returns The event instance for chaining.
+         */
+        slideDown(target: string | EventTarget, duration?: number): this;
+
+        /**
+         * Slides up an element to hide it.
+         * @param target The CSS selector or DOM element.
+         * @param duration The duration in milliseconds. Defaults to 300.
+         * @returns The event instance for chaining.
+         */
+        slideUp(target: string | EventTarget, duration?: number): this;
+    }
+}
 
 declare module 'mintkit' {
 
-    // MintAssembly
-    /** Interpreting and executing MintAssembly code. */
-    export const MintAssembly: any; // Note: Replace `any` with a more specific type if the structure of MintAssembly
-
-    // Virtual DOM and Component Types
-
-    /** virtual DOM node. */
-    export interface VNode {
-        tag: string;
-        props: Record<string, any>;
-        children: (VNode | string | number)[];
-        key?: string | number | null;
-    }
-
-    /** Represents a component that can be rendered. */
-    export type Component<P = {}> = (props: P, ...children: (VNode | string | number)[]) => VNode;
-
-    // State Management
+    //================================================================
+    // Virtual DOM and State Management Types
+    //================================================================
 
     /**
-     * Reactive state container.
+     * Represents a virtual DOM node.
      */
-    export interface MintState<T> {
-        /** Returns the current state. */
+    export interface VNode {
+        tag: string;
+        props: { [key: string]: any; key?: string | number | null };
+        children: (VNode | string | number)[];
+        key: string | number | null;
+    }
+
+    /**
+     * Represents a state object created by `createState`.
+     */
+    export interface State<T> {
+        /**
+         * Returns the current value of the state.
+         * @returns The current state value.
+         */
         get(): T;
+
         /**
          * Updates the state.
-         * @param newState The new state or a function that receives the old state and returns the new state.
+         * @param newState The new state value, or a function that receives the old state and returns the new state.
          */
         set(newState: T | ((prevState: T) => T)): void;
+
         /**
-         * Subscribes to state changes or mounts the VDOM.
-         * @param subscriber A function to call when the state changes.
+         * Subscribes to state changes or mounts a VDOM component.
+         * @param subscriber A function that will be called with the new state whenever it changes.
          * @param mountPoint The DOM element to mount the VDOM to.
+         * @returns An unsubscribe function.
          */
-        subscribe(subscriber: (state: T) => void, mountPoint?: HTMLElement): (() => void) | undefined;
-        /** Creates a virtual DOM element. */
-        createElement(tag: string | Component<any>, props: Record<string, any> | null, ...children: any[]): VNode;
-        /** Returns the number of active subscribers. */
+        subscribe(subscriber: (state: T) => void, mountPoint?: HTMLElement): () => void;
+
+        /**
+         * Creates a virtual DOM element.
+         * @param tag The HTML tag for the element.
+         * @param props The properties (attributes) of the element.
+        * @param children The child elements.
+         * @returns A VNode object.
+         */
+        createElement(tag: string, props: { [key: string]: any }, ...children: any[]): VNode;
+
+        /**
+         * Gets the number of active subscribers.
+         * @returns The number of subscribers.
+         */
         getSubscriberCount(): number;
-        /** Checks if there are any subscribers. */
+
+        /**
+         * Checks if there are any active subscribers.
+         * @returns True if there are subscribers, false otherwise.
+         */
         hasSubscribers(): boolean;
-        /** Clears all subscribers and resets the mount point. */
+
+        /**
+         * Clears all subscribers and resets the state's internal DOM references.
+         */
         clear(): void;
     }
 
     /**
      * Creates a reactive state object.
      * @param initialValue The initial value of the state.
+     * @returns A state management object.
      */
-    export function createState<T>(initialValue: T): MintState<T>;
-
-    // Functional Utilities
+    export function createState<T>(initialValue: T): State<T>;
 
     /**
-     * Performs left-to-right function composition.
+     * Creates a virtual DOM element.
+     * @param tag The HTML tag for the element.
+     * @param props The properties (attributes) of the element.
+     * @param children The child elements.
+     * @returns A VNode object.
      */
-    export function pipe(...fns: Function[]): (x: any) => any;
+    export function createElement(tag: string, props: { [key: string]: any }, ...children: any[]): VNode;
+
+    //================================================================
+    // Functional Utilities
+    //================================================================
+
+    /**
+     * Performs left-to-right function composition. The first function may have any arity; the remaining functions must be unary.
+     * @param funcs The functions to pipe.
+     * @returns A new function that applies the piped functions in sequence.
+     */
+    export function pipe(...funcs: Function[]): (initialValue: any) => any;
 
     /**
      * Performs right-to-left function composition.
+     * @param funcs The functions to compose.
+     * @returns A new function that applies the composed functions in sequence.
      */
-    export function compose(...fns: Function[]): (x: any) => any;
+    export function compose(...funcs: Function[]): (initialValue: any) => any;
 
-    // DOM Injection
+    //================================================================
+    // DOM Injection and Content Management
+    //================================================================
 
+    /**
+     * Options for `injectCSS`.
+     */
     export interface InjectCSSOptions {
-        nonce?: string;
-        media?: string;
-        priority?: 'normal' | 'high' | 'low';
+        /** A cryptographic nonce for Content Security Policy. */
+        nonce?: string | null;
+        /** Media query for which the styles should apply. */
+        media?: string | null;
+        /** Loading priority ('high', 'normal', 'low'). */
+        priority?: 'high' | 'normal' | 'low';
+        /** Whether to perform security validation on the CSS string. */
         validate?: boolean;
+        /** Custom error handling function. */
         onError?: (error: Error) => void;
     }
 
-    export interface InjectedStyleElement extends HTMLStyleElement {
-        removeCSS(): void;
-    }
-
     /**
-     * Injects a CSS string into the document head.
+     * Injects a CSS string into the document's head.
      * @param cssString The CSS rules to inject.
-     * @param options Configuration options.
+     * @param options Configuration options for the injection.
+     * @returns The created `<style>` element with a `removeCSS` method, or null on failure.
      */
-    export function injectCSS(cssString: string, options?: InjectCSSOptions): InjectedStyleElement | null;
+    export function injectCSS(cssString: string, options?: InjectCSSOptions): HTMLStyleElement & { removeCSS?: () => void } | null;
 
+    /**
+     * Options for `injectHTML`.
+     */
     export interface InjectHTMLOptions {
+        /** Whether to sanitize the HTML content. Defaults to true. */
         sanitize?: boolean;
+        /** Whether to allow script tags. Defaults to false. */
         allowScripts?: boolean;
+        /** Whether to allow event handlers (e.g., onclick). Defaults to false. */
         allowEvents?: boolean;
+        /** The insertion mode: 'replace', 'append', 'prepend'. Defaults to 'replace'. */
         mode?: 'replace' | 'append' | 'prepend';
+        /** Custom error handling function. */
         onError?: (error: Error) => void;
+        /** Whether to perform security validation. Defaults to true. */
+        validate?: boolean;
     }
 
     /**
-     * Injects an HTML string into a target element.
+     * Safely injects HTML content into a target element.
      * @param targetSelector The CSS selector for the target element.
      * @param htmlContent The HTML string to inject.
-     * @param options Configuration options.
+     * @param options Configuration options for the injection.
+     * @returns The target HTMLElement on success.
      */
     export function injectHTML(targetSelector: string, htmlContent: string, options?: InjectHTMLOptions): HTMLElement;
 
     /**
-     * Injects a title into the document head.
-     * @param titleHtmlString The title string, preferably wrapped in `<title>` tags.
+     * Configuration for HTML injection within the `inject` function.
      */
-    export function injectTitle(titleHtmlString: string): void;
-
-    export interface InjectConfig {
-        html?: {
-            id: string;
-            location: string | (() => string);
-            options?: InjectHTMLOptions;
-        };
-        css?: {
-            location: string | Record<string, string> | (() => string | Record<string, string>);
-            options?: InjectCSSOptions;
-        };
+    export interface InjectHTMLConfig {
+        /** The CSS selector for the target element (e.g., '#app'). */
+        id: string;
+        /** A function returning the HTML string, or the HTML string directly. */
+        location: () => string | string;
+        /** Additional options passed to `injectHTML`. */
+        options?: InjectHTMLOptions;
     }
 
     /**
-     * A unified API for injecting HTML and CSS.
+     * Configuration for CSS injection within the `inject` function.
+     */
+    export interface InjectCSSConfig {
+        /** A function returning CSS, a CSS string, or an object of CSS strings. */
+        location: () => string | { [key: string]: string } | string | { [key: string]: string };
+        /** Additional options passed to `injectCSS`. */
+        options?: InjectCSSOptions;
+    }
+
+    /**
+     * Configuration object for the `inject` function.
+     */
+    export interface InjectConfig {
+        /** Configuration for HTML injection. */
+        html?: InjectHTMLConfig;
+        /** Configuration for CSS injection. */
+        css?: InjectCSSConfig;
+    }
+
+    /**
+     * A unified API to inject both HTML and CSS in a structured way.
      * @param config The injection configuration object.
      */
     export function inject(config: InjectConfig): void;
 
-    // File Loading
+    /**
+     * Injects or replaces the document's title.
+     * @param titleHtmlString The title string, preferably wrapped in `<title>` tags.
+     */
+    export function injectTitle(titleHtmlString: string): void;
 
     /**
-     * Fetches and injects a .css or .html file.
-     * @param url The URL of the file.
-     * @param targetSelector For HTML files, the CSS selector of the target element.
+     * Clears the cache used by `injectCSS`.
      */
-    export function get(url: string, targetSelector?: string): Promise<HTMLElement | HTMLLinkElement | void>;
+    export function clearInjectionCache(): void;
 
-    /** Alias for `get`. */
+    /**
+     * Retrieves statistics about the injection system.
+     */
+    export function getInjectionStats(): {
+        hashCacheSize: number;
+        memoryUsage: any;
+    };
+
+    //================================================================
+    // Asynchronous Content Loading
+    //================================================================
+
+    /**
+     * Fetches and injects a CSS or HTML file.
+     * For HTML, it can insert the content into a specified target.
+     * @param url The URL of the file to get (.css, .html, .htm).
+     * @param targetSelector Optional CSS selector for HTML injection. Defaults to 'body'.
+     * @returns A promise that resolves with the created element (link or target) or void for CSS if already loaded.
+     */
+    export function get(url: string, targetSelector?: string): Promise<void | HTMLElement | HTMLLinkElement>;
+
+    /**
+     * Alias for the `get` function.
+     */
     export const include: typeof get;
 
     /**
-     * Processes `@include()` directives within a given DOM context.
-     * @param context The DOM element or document to search within.
+     * Processes `@include('path/to/file')` directives within the text nodes of a given context.
+     * @param context The DOM context to search within. Defaults to `document`.
+     * @returns A promise that resolves when all includes have been processed.
      */
-    export function processIncludes(context?: Document | Element): Promise<void>;
+    export function processIncludes(context?: Document | HTMLElement): Promise<void>;
 
-    // Development & Performance
+    //================================================================
+    // Live Reloading and Performance Monitoring
+    //================================================================
 
-    export interface AdjustHookMetrics {
-        requests: { total: number; successful: number; failed: number; retries: number; };
-        performance: { totalTime: number; avgResponseTime: number; minResponseTime: number; maxResponseTime: number; lastResponseTime: number; responseTimeHistory: number[]; };
-        errors: { total: number; consecutive: number; maxConsecutive: number; types: Record<string, number>; lastError: string | null; lastErrorTime: number | null; };
-        health: { uptime: number; isHealthy: boolean; lastSuccessTime: number | null; lastFailureTime: number | null; successRate: number; };
-        server: { memoryUsage: number; cpuUsage: number; uptime: number; version: string | null; lastUpdate: number | null; };
-    }
-
-    export interface AdjustHookAPI {
-        /** Stops the monitoring interval. */
-        stop(): void;
-        /** Gets basic request and error statistics. */
-        getStats(): { requests: number; errors: number; totalTime: number; avgTime: number; lastCheckTime: number; };
-        /** Gets the full detailed metrics object. */
-        getMetrics(): AdjustHookMetrics & { summary: { uptime: number; successRate: number; avgResponseTime: number; p95ResponseTime: number; healthStatus: 'healthy' | 'degraded'; } };
-        /** Manually triggers a metrics report. */
-        reportMetrics(): void;
-        /** Gets the duration of the last check. */
-        getLastCheckTime(): number;
-        /** Returns true if the connection is considered healthy. */
-        isHealthy(): boolean;
-        /** Returns a formatted summary of key metrics. */
-        getFormattedMetrics(): { uptime: string; successRate: string; avgResponse: string; memoryUsage: string; totalRequests: string; errorRate: string; };
-    }
-
+    /**
+     * Options for `AdjustHook`.
+     */
     export interface AdjustHookOptions {
         interval?: number;
         endpoint?: string;
         onReload?: () => void;
-        onError?: (error: any) => void;
+        onError?: (error: Error) => void;
         onMetricsUpdate?: (report: any) => void;
         enabled?: boolean;
         performanceMonitoring?: boolean;
@@ -192,143 +429,235 @@ declare module 'mintkit' {
     }
 
     /**
-     * A hook for live-reloading during development.
+     * Represents the control object returned by `AdjustHook`.
      */
-    export function AdjustHook(options?: AdjustHookOptions): AdjustHookAPI;
+    export interface AdjustHookInstance {
+        /** Stops the hot-reloading checks. */
+        stop: () => void;
+        /** Gets basic statistics. */
+        getStats: () => object;
+        /** Gets detailed metrics. */
+        getMetrics: () => object;
+        /** Manually triggers a metrics report. */
+        reportMetrics: () => void;
+        /** Gets the time of the last check. */
+        getLastCheckTime: () => number;
+        /** Checks if the connection is healthy. */
+        isHealthy: () => boolean;
+        /** Gets formatted metrics for display. */
+        getFormattedMetrics: () => object;
+    }
 
-    export interface PerformanceMonitorAPI {
-        /** Starts a timer with a given label. */
+    /**
+     * A client-side hot-reloading and performance monitoring utility.
+     * @param options Configuration options.
+     * @returns A control object with methods to stop and get stats.
+     */
+    export function AdjustHook(options?: AdjustHookOptions): AdjustHookInstance;
+
+    /**
+     * A utility for measuring code execution time.
+     */
+    export const PerformanceMonitor: {
+        timers: Map<string, number>;
+        enabled: boolean;
         start(label: string): this;
-        /** Ends a timer and logs the duration. */
         end(label: string): number;
-        /** Measures the execution time of a synchronous function. */
         measure<T>(label: string, fn: () => T): T;
-        /** Measures the execution time of an asynchronous function. */
         measureAsync<T>(label: string, fn: () => Promise<T>): Promise<T>;
-        /** Gets the current duration of all active timers. */
-        getStats(): Record<string, number>;
-        /** Clears all active timers. */
+        getStats(): { [key: string]: number };
         clear(): void;
-        /** Enables the monitor. */
         enable(): void;
-        /** Disables the monitor. */
         disable(): void;
-    }
-
-    /** A utility for measuring code execution time. */
-    export const PerformanceMonitor: PerformanceMonitorAPI;
-
-    export interface ReloadPerformanceEntry {
-        timestamp: number;
-        duration: number;
-        fileCount: number;
-        memoryUsage: number;
-        date: string;
-    }
-
-    export interface ReloadPerformanceStats {
-        totalReloads: number;
-        averageTime: number;
-        minTime: number;
-        maxTime: number;
-        lastReload: ReloadPerformanceEntry;
-    }
-
-    export interface ReloadPerformanceTrackerAPI {
-        /** Records a new reload event. */
-        recordReload(duration: number, fileCount?: number, memoryUsage?: number): ReloadPerformanceEntry | null;
-        /** Gets aggregated statistics of all recorded reloads. */
-        getStats(): ReloadPerformanceStats | null;
-        /** Logs the current stats to the console. */
-        logStats(): void;
-        /** Clears all recorded history. */
-        clear(): void;
-        /** Enables the tracker. */
-        enable(): void;
-        /** Disables the tracker. */
-        disable(): void;
-    }
-
-    /** A utility for tracking performance of hot-reloads. */
-    export const ReloadPerformanceTracker: ReloadPerformanceTrackerAPI;
-
-    /**
-     * Clears the cache used by `injectCSS`.
-     */
-    export function clearInjectionCache(): void;
-
-    /**
-     * Gets statistics about injected resources.
-     */
-    export function getInjectionStats(): { hashCacheSize: number; memoryUsage: any; };
-
-    // General Utilities
-
-    export const MintUtils: {
-        isElement(el: any): el is Element;
-        isTextNode(node: any): node is Text;
-        isVNode(obj: any): obj is VNode;
-        debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void;
-        deepEqual(obj1: any, obj2: any): boolean;
     };
 
-    // Routing
+    /**
+     * A utility for tracking performance metrics of reloads.
+     */
+    export const ReloadPerformanceTracker: {
+        history: any[];
+        maxHistory: number;
+        enabled: boolean;
+        recordReload(duration: number, fileCount?: number, memoryUsage?: number): object | null;
+        getStats(): object | null;
+        logStats(): void;
+        clear(): void;
+        enable(): void;
+        disable(): void;
+    };
 
-    export interface RouterAPI {
-        route(pattern: string, callback: (params: Record<string, string>) => void): this;
+    //================================================================
+    // General Utilities
+    //================================================================
+
+    /**
+     * A collection of utility functions.
+     */
+    export const MintUtils: {
+        isElement: (el: any) => el is Element;
+        isTextNode: (node: any) => node is Text;
+        isVNode: (obj: any) => obj is VNode;
+        debounce: <T extends (...args: any[]) => any>(func: T, wait: number) => (...args: Parameters<T>) => void;
+        deepEqual: (obj1: any, obj2: any) => boolean;
+    };
+
+    //================================================================
+    // Client-Side Router
+    //================================================================
+
+    /**
+     * Represents the router instance.
+     */
+    export interface RouterInstance {
+        /**
+         * Registers a route pattern and its corresponding callback function.
+         * @param pattern The route pattern (e.g., '/user/:id').
+         * @param callback The function to execute when the route matches.
+         * @returns The Router instance for method chaining.
+         */
+        route(pattern: string, callback: (params: { [key: string]: string }) => void): this;
+
+        /**
+         * Defines a handler for when no routes match the current path.
+         * @param callback The function to execute.
+         * @returns The Router instance for method chaining.
+         */
         notFound(callback: (path: string) => void): this;
+
+        /**
+         * Programmatically navigates to a new path.
+         * @param path The path to navigate to.
+         */
         navigate(path: string): void;
-        getParams(): Record<string, string>;
+
+        /**
+         * Gets the parameters from the current URL.
+         * @returns An object containing the URL parameters.
+         */
+        getParams(): { [key: string]: string };
+
+        /**
+         * Gets the current URL path.
+         * @returns The current path string.
+         */
         getPath(): string;
+
+        /**
+         * Starts the router and executes the handler for the initial route.
+         * @returns The Router instance for method chaining.
+         */
         init(): this;
     }
 
-    export const Router: RouterAPI;
+    /**
+     * A singleton client-side router.
+     */
+    export const Router: RouterInstance;
 
     /**
-     * Programmatically navigates to a new path.
+     * A helper function for programmatic navigation.
      * @param path The path to navigate to.
      */
     export function navigate(path: string): void;
 
     /**
-     * A component for declarative navigation.
+     * A virtual DOM component for creating navigation links that use the client-side router.
+     * @param props The properties for the link, including a `to` property for the destination path.
+     * @param children The child elements of the link.
+     * @returns A VNode representing the link.
      */
     export function Link(props: { to: string; [key: string]: any }, ...children: any[]): VNode;
 
     /**
-     * A Higher-Order Component that provides router props to a component.
+     * A Higher-Order Component (HOC) that injects router information (path, params) into a component.
+     * @param Component The component function to wrap.
+     * @returns A new component function that receives router props.
      */
-    export function withRouter<P extends object>(Component: Component<P & { router: { path: string; params: Record<string, string> } }>): (props: P) => VNode;
+    export function withRouter<P>(Component: (props: P & { router: { path: string; params: object } }) => VNode): (props: P) => VNode;
 
-}
+    //================================================================
+    // MintAssembly - WebAssembly-like Interpreter / Template Engine
+    //================================================================
 
-declare module 'mintkit/main' {
-    import { MintAssembly } from 'mintkit';
+    /**
+     * Options for the Universal Template Engine mode of MintAssembly.
+     */
+    export interface UniversalTemplateEngineOptions {
+        context?: { [key: string]: any };
+        filters?: { [key: string]: (...args: any[]) => any };
+    }
 
+    /**
+     * The interface for the Universal Template Engine.
+     */
+    export interface UniversalTemplateEngineInstance {
+        /**
+         * Renders the template within the specified selector.
+         * @param selector The CSS selector or DOM element to mount to.
+         * @param props Additional properties to merge with the context.
+         */
+        mount(selector: string | HTMLElement, props?: { [key: string]: any }): void;
+        /** A map of named template elements found in the DOM. */
+        templates: { [key: string]: HTMLTemplateElement };
+        /**
+         * Hashes a string using the FNV-1a algorithm.
+         * @param str The string to hash.
+         * @returns The hash as a number.
+         */
+        hashString(str: string): number;
+    }
+
+    /**
+     * A factory function that initializes either the legacy MintAssembly interpreter
+     * or a modern universal template engine based on the provided options.
+     *
+     * @param opts - Options object. If `context` or `filters` are provided, it initializes the template engine. Otherwise, it runs the legacy interpreter.
+     * @returns The template engine instance if `opts` match, otherwise `void` as the legacy version runs immediately.
+     */
+    export function MintAssembly(opts?: UniversalTemplateEngineOptions): UniversalTemplateEngineInstance | void;
+
+    //================================================================
+    // Main Mint Object
+    //================================================================
+
+    /**
+     * The main Mint object, containing all major framework functionalities.
+     */
     export const Mint: {
-        createState: any;
-        injectCSS: any;
-        injectHTML: any;
-        injectTitle: any;
-        get: any;
-        include: any;
-        processIncludes: any;
-        MintAssembly: any;
-        Router: any;
-        navigate: any;
-        Link: any;
+        createState: typeof createState;
+        injectCSS: typeof injectCSS;
+        injectHTML: typeof injectHTML;
+        inject: typeof inject;
+        injectTitle: typeof injectTitle;
+        get: typeof get;
+        include: typeof include;
+        processIncludes: typeof processIncludes;
+        MintAssembly: typeof MintAssembly;
+        Router: typeof Router;
+        navigate: typeof navigate;
+        Link: typeof Link;
+        withRouter: typeof withRouter;
+        AdjustHook: typeof AdjustHook;
+        PerformanceMonitor: typeof PerformanceMonitor;
+        ReloadPerformanceTracker: typeof ReloadPerformanceTracker;
+        getInjectionStats: typeof getInjectionStats;
+        clearInjectionCache: typeof clearInjectionCache;
+        pipe: typeof pipe;
+        compose: typeof compose;
+        MintUtils: typeof MintUtils;
+        /**
+         * Executes a function after the current microtask queue is empty.
+         * Useful for running setup code after the initial DOM content has been loaded and parsed.
+         * @param fn The function to execute.
+         */
         init: (fn: () => void) => void;
     };
 
-    export const Utility: {
-        pipe: any;
-        compose: any;
-        PerformanceMonitor: any;
-        ReloadPerformanceTracker: any;
-        getInjectionStats: any;
-        clearInjectionCache: any;
-        MintUtils: any;
-        withRouter: any;
-    };
+    /**
+     * A placeholder for the extended Event API. The actual implementation augments the global Event object.
+     * @deprecated This export is null. Use `new Event('...')` and chain methods like `.on()`, `.delay()`, etc.
+     */
+    export const event: null;
+
+    export default Mint;
 }
