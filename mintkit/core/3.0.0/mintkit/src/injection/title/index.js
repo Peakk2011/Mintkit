@@ -1,0 +1,1 @@
+export { injectTitle } from './inject-title.js';

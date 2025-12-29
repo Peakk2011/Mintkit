@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mintkit Example</title>
+</head>
+
+<body>
+    <div id="app"></div>
+    <script type="module">
+        import { Mint } from '../src/index.js';
+
+        let state;
+
+        // Create virtual DOM
+        const vdom = Mint.createElement('div', { class: 'app' },
+            Mint.createElement('h1', {}, 'Mintkit Example'),
+            Mint.createElement('p', {}, 'Hello, ', () => state.get().name),
+            Mint.createElement('div', { class: 'counter' },
+                Mint.createElement('button', {
+                    onClick: () => state.set(s => ({ ...s, count: s.count - 1 }))
+                }, '-'),
+                Mint.createElement('span', {}, () => `Count: ${state.get().count}`),
+                Mint.createElement('button', {
+                    onClick: () => state.set(s => ({ ...s, count: s.count + 1 }))
+                }, '+')
+            ),
+            Mint.createElement('input', {
+                type: 'text',
+                placeholder: 'Enter your name',
+                onInput: (e) => state.set(s => ({ ...s, name: e.target.value }))
+            })
+        );
+
+        // Create reactive state with vdom
+        state = Mint.createState({
+            count: 0,
+            name: 'Mintkit User',
+            vdom: vdom
+        });
+
+
+        // Mount to DOM
+        state.subscribe(document.getElementById('app'));
+
+        // Inject CSS
+        Mint.injectCSS(`
+            .app {
+                font-family: Arial, sans-serif;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .counter {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin: 20px 0;
+            }
+            button {
+                padding: 10px 20px;
+                font-size: 16px;
+                cursor: pointer;
+            }
+            input {
+                padding: 10px;
+                font-size: 16px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+        `);
+
+        // Router example
+        Mint.Router
+            .route('/', () => console.log('Home page'))
+            .route('/about', () => console.log('About page'))
+            .init();
+    </script>
+</body>
+
+</html>

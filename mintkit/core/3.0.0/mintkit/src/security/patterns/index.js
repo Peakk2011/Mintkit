@@ -1,0 +1,1 @@
+export { DANGEROUS_PATTERNS, containsDangerousPatterns, getDangerousPatterns } from './dangerous-patterns.js';
