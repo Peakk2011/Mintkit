@@ -1,426 +1,503 @@
-// Import ColladaLoader
-import { ColladaLoader } from 'https://cdn.skypack.dev/three@0.128.0/examples/jsm/loaders/ColladaLoader.js';
+import * as THREE from 'three';
+import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 
+// Scene Setup
 let scene, camera, renderer;
 let currentModel = null;
 let isAnimating = false;
 let isWireframe = false;
 
-// Camera orbit controls
-let mouseDown = false;
+// Camera orbit
+let mouseDown = false, isPanning = false;
 let mouseX = 0, mouseY = 0;
 let cameraDistance = 15;
-let cameraTheta = 0;      // horizontal angle
-let cameraPhi = Math.PI / 4; // 45 degrees - better starting angle
+let cameraTheta = 0, cameraPhi = Math.PI / 4;
 let targetTheta = 0, targetPhi = Math.PI / 4;
-let isPanning = false;
 let panTarget = new THREE.Vector3(0, 3, 0);
 
-function init() {
-    // Scene
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1f1f1f);
-    scene.fog = new THREE.Fog(0x1f1f1f, 10, 50);
+let fileMap = {};
+let mainFile = null;
+let mainFileType = null;
 
-    // Camera
-    camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 1000); // FOV 80
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x141414);
+    scene.fog = new THREE.Fog(0x141414, 30, 120);
+
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
     updateCameraPosition();
 
-    // Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    document.body.appendChild(renderer.domElement);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
 
     // Lights
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
-    scene.add(ambientLight);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    directionalLight.position.set(20, 20, 20);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    directionalLight.shadow.camera.near = 0.5;
-    directionalLight.shadow.camera.far = 100;
-    directionalLight.shadow.camera.left = -20;
-    directionalLight.shadow.camera.right = 20;
-    directionalLight.shadow.camera.top = 20;
-    directionalLight.shadow.camera.bottom = -20;
-    scene.add(directionalLight);
+    const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+    sun.position.set(20, 30, 20);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = 200;
+    sun.shadow.camera.left = sun.shadow.camera.bottom = -30;
+    sun.shadow.camera.right = sun.shadow.camera.top = 30;
+    scene.add(sun);
 
-    const pointLight = new THREE.PointLight(0x4444ff, 0.5, 50);
-    pointLight.position.set(-10, 10, -10);
-    scene.add(pointLight);
+    const fill = new THREE.DirectionalLight(0x8090ff, 0.6);
+    fill.position.set(-15, 10, -15);
+    scene.add(fill);
 
-    // Ground plane at Y=0
-    const groundGeometry = new THREE.PlaneGeometry(100, 100);
-    const groundMaterial = new THREE.MeshLambertMaterial({
-        color: 0x2a2a2a,
-        transparent: true,
-        opacity: 0.7
-    });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    // Ground
+    const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(200, 200),
+        new THREE.MeshLambertMaterial({ color: 0x1e1e1e })
+    );
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0;
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // Grid at Y=0
-    const gridHelper = new THREE.GridHelper(100, 50, 0x555555, 0x333333);
-    gridHelper.position.y = 0.01; // Slightly above ground to avoid z-fighting
-    scene.add(gridHelper);
-
-    // Axes helper at origin
-    const axesHelper = new THREE.AxesHelper(10);
-    axesHelper.position.y = 0.02;
-    scene.add(axesHelper);
+    const grid = new THREE.GridHelper(200, 80, 0x303030, 0x202020);
+    grid.position.y = 0.01;
+    scene.add(grid);
 
     setupControls();
     animate();
 }
 
-function setupControls() {
-    renderer.domElement.addEventListener('mousedown', onMouseDown);
-    renderer.domElement.addEventListener('mousemove', onMouseMove);
-    renderer.domElement.addEventListener('mouseup', onMouseUp);
-    renderer.domElement.addEventListener('wheel', onMouseWheel);
+// File Handling
+const fileInput = document.getElementById('file-input');
+const dropZone = document.getElementById('drop-zone');
 
-    // Touch support
-    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
-    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: false });
-    renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: false });
+fileInput.addEventListener('change', e => processFiles(e.target.files));
 
-    // Make functions global
-    window.loadModel = loadModel;
-    window.loadSample = loadSample;
-    window.toggleWireframe = toggleWireframe;
-    window.toggleAnimation = toggleAnimation;
-    window.resetView = resetView;
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    processFiles(e.dataTransfer.files);
+});
+
+function processFiles(fileList) {
+    for (const f of fileList) {
+        fileMap[f.name] = f;
+    }
+    rebuildFileList();
 }
 
-function loadModel() {
-    const path = document.getElementById('modelPath').value;
-    if (!path.trim()) {
-        updateStatus('Please enter a model path', 'error');
-        return;
+function rebuildFileList() {
+    mainFile = null;
+    mainFileType = null;
+
+    const listEl = document.getElementById('file-list');
+    const secEl = document.getElementById('file-list-section');
+    listEl.innerHTML = '';
+
+    const files = Object.values(fileMap);
+    if (!files.length) { secEl.style.display = 'none'; return; }
+    secEl.style.display = 'block';
+
+    for (const f of files) {
+        const ext = f.name.split('.').pop().toLowerCase();
+        let badgeClass = 'badge-tex', itemClass = 'tex';
+
+        if (ext === 'obj') { badgeClass = 'badge-obj'; itemClass = 'main'; mainFile = f; mainFileType = 'obj'; }
+        else if (ext === 'dae') { badgeClass = 'badge-obj'; itemClass = 'main'; mainFile = f; mainFileType = 'dae'; }
+        else if (ext === 'mtl') { badgeClass = 'badge-mtl'; itemClass = 'mtl'; }
+
+        const item = document.createElement('div');
+        item.className = `file-item ${itemClass}`;
+        item.innerHTML = `
+      <span class="file-badge ${badgeClass}">${ext.toUpperCase()}</span>
+      <span class="file-name" title="${f.name}">${f.name}</span>
+      <button class="file-remove" onclick="removeFile('${f.name}')">×</button>`;
+        listEl.appendChild(item);
     }
 
-    updateStatus('Loading model...', '');
+    document.getElementById('loadBtn').disabled = !mainFile;
+    setStatus(mainFile
+        ? `Ready to load: ${mainFile.name}`
+        : 'Add an .OBJ or .DAE file to load', '');
+}
 
-    const loader = new ColladaLoader();
+window.removeFile = name => {
+    delete fileMap[name];
+    rebuildFileList();
+};
 
-    loader.load(
-        path,
-        function (collada) {
-            // Success
-            if (currentModel) {
-                scene.remove(currentModel);
-            }
+function createBlobURL(file) {
+    return URL.createObjectURL(file);
+}
 
-            currentModel = collada.scene;
+function buildMTLManager() {
+    const manager = new THREE.LoadingManager();
 
-            // Fix model orientation - rotate to normal position
-            currentModel.rotation.x = -Math.PI / 2; // Rotate 90 degrees to fix upside down
-            currentModel.rotation.y = 0;
-            currentModel.rotation.z = 0;
+    manager.setURLModifier(url => {
+        const basename = url.split(/[/\\]/).pop();
+        const match = Object.keys(fileMap).find(
+            k => k.toLowerCase() === basename.toLowerCase()
+        );
+        if (match) return URL.createObjectURL(fileMap[match]);
+        return url;
+    });
 
-            // Get bounding box after rotation
-            const box = new THREE.Box3().setFromObject(currentModel);
-            const size = box.getSize(new THREE.Vector3());
-            const center = box.getCenter(new THREE.Vector3());
-            const min = box.min;
+    return manager;
+}
 
-            // Scale to reasonable viewport size (5-8 units)
-            const maxDim = Math.max(size.x, size.y, size.z);
-            if (maxDim > 0) {
-                const targetSize = 0.3; // Good size for viewing
-                const scale = targetSize / maxDim;
-                currentModel.scale.setScalar(scale);
-            }
+// Load OBJ + MTL
+async function loadOBJ() {
+    const manager = buildMTLManager();
 
-            // Recalculate box after scaling
-            box.setFromObject(currentModel);
-            const finalCenter = box.getCenter(new THREE.Vector3());
-            const finalMin = box.min;
-
-            // Position model so its bottom sits on Y=0 and centered on XZ
-            currentModel.position.set(
-                -finalCenter.x,  // Center on X
-                -finalMin.y,     // Bottom at Y=0  
-                -finalCenter.z   // Center on Z
-            );
-
-            // Setup materials and shadows
-            let meshCount = 0;
-            currentModel.traverse((child) => {
-                if (child.isMesh) {
-                    meshCount++;
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-
-                    // Ensure material
-                    if (!child.material) {
-                        child.material = new THREE.MeshLambertMaterial({
-                            color: 0x00ff00
-                        });
-                    }
-
-                    // Convert to array if needed
-                    if (!Array.isArray(child.material)) {
-                        child.material = [child.material];
-                    }
-
-                    child.material.forEach(mat => {
-                        if (mat) {
-                            mat.side = THREE.DoubleSide;
-                        }
-                    });
-                }
-            });
-
-            scene.add(currentModel);
-            updateStatus(`Model loaded successfully! (${meshCount} meshes)`, 'success');
-        },
-        function (progress) {
-            // Progress
-            const percent = (progress.loaded / progress.total * 100).toFixed(1);
-            updateStatus(`Loading... ${percent}%`, '');
-        },
-        function (error) {
-            // Error
-            console.error('Load error:', error);
-            updateStatus(`Failed to load: ${error.message || 'Unknown error'}`, 'error');
-        }
+    const mtlFile = Object.values(fileMap).find(
+        f => f.name.toLowerCase().endsWith('.mtl')
     );
+
+    let object;
+
+    if (mtlFile) {
+        // Read MTL text
+        const mtlText = await mtlFile.text();
+
+        const mtlLoader = new MTLLoader(manager);
+        mtlLoader.setMaterialOptions({ side: THREE.DoubleSide });
+
+        const mtlBlob = new Blob([mtlText], { type: 'text/plain' });
+        const mtlURL = URL.createObjectURL(mtlBlob);
+
+        const materials = await new Promise((res, rej) =>
+            mtlLoader.load(mtlURL, res, undefined, rej)
+        );
+        materials.preload();
+        URL.revokeObjectURL(mtlURL);
+
+        const objLoader = new OBJLoader(manager);
+        objLoader.setMaterials(materials);
+
+        const objURL = createBlobURL(mainFile);
+        object = await new Promise((res, rej) =>
+            objLoader.load(objURL, res, onProgress, rej)
+        );
+        URL.revokeObjectURL(objURL);
+
+    } else {
+        // No MTL – load OBJ with default material
+        const objLoader = new OBJLoader(manager);
+        const objURL = createBlobURL(mainFile);
+        object = await new Promise((res, rej) =>
+            objLoader.load(objURL, res, onProgress, rej)
+        );
+        URL.revokeObjectURL(objURL);
+    }
+
+    return object;
 }
 
-function loadSample() {
-    // Create a sample 3D object if no DAE available
-    if (currentModel) {
-        scene.remove(currentModel);
+// Load DAE (Collada)
+async function loadDAE() {
+    const manager = buildMTLManager();
+    const loader = new ColladaLoader(manager);
+    const url = createBlobURL(mainFile);
+
+    const collada = await new Promise((res, rej) =>
+        loader.load(url, res, onProgress, rej)
+    );
+
+    URL.revokeObjectURL(url);
+    return collada.scene;
+}
+
+// Shared post-load setup
+function finalizeModel(object) {
+    // For DAE: fix typical SketchUp up-axis
+    if (mainFileType === 'dae') {
+        object.rotation.set(-Math.PI / 2, 0, 0);
     }
+
+    // Fit to scene
+    const box = new THREE.Box3().setFromObject(object);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const targetSize = 8;
+    if (maxDim > 0) object.scale.setScalar(targetSize / maxDim);
+
+    // Re-center after scale
+    box.setFromObject(object);
+    const min = box.min;
+    const center2 = box.getCenter(new THREE.Vector3());
+    object.position.set(-center2.x, -min.y, -center2.z);
+
+    // Shadows + double-side
+    let meshCount = 0, matNames = new Set();
+    object.traverse(child => {
+        if (!child.isMesh) return;
+        meshCount++;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.geometry.computeVertexNormals();
+
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        mats.forEach(mat => {
+            if (!mat) return;
+            mat.side = THREE.DoubleSide;
+            matNames.add(mat.name || '(unnamed)');
+        });
+    });
+
+    // Camera distance
+    box.setFromObject(object);
+    const finalSize = box.getSize(new THREE.Vector3()).length();
+    cameraDistance = finalSize * 1.2;
+    panTarget.set(0, finalSize * 0.15, 0);
+    resetView();
+
+    // Info
+    showInfo({ meshes: meshCount, materials: matNames.size, format: mainFileType?.toUpperCase() || '—' });
+
+    return meshCount;
+}
+
+// Main load entry
+window.loadFiles = async function () {
+    if (!mainFile) return;
+
+    showLoadingOverlay(true, 'Parsing files…');
+    setStatus('Loading…', 'loading');
+    showProgress(0);
+
+    try {
+        if (currentModel) { scene.remove(currentModel); currentModel = null; }
+
+        let object;
+        if (mainFileType === 'obj') object = await loadOBJ();
+        else object = await loadDAE();
+
+        const count = finalizeModel(object);
+        currentModel = object;
+        scene.add(currentModel);
+
+        setStatus(`✓ Loaded — ${count} mesh${count !== 1 ? 'es' : ''}`, 'success');
+
+    } catch (err) {
+        console.error(err);
+        setStatus(`Error: ${err.message || err}`, 'error');
+    } finally {
+        showLoadingOverlay(false);
+        showProgress(null);
+    }
+};
+
+function onProgress(e) {
+    if (e.lengthComputable) {
+        showProgress(e.loaded / e.total * 100);
+        document.getElementById('loading-text').textContent =
+            `Loading… ${(e.loaded / e.total * 100).toFixed(0)}%`;
+    }
+}
+
+// Sample Scene
+window.loadSample = function () {
+    if (currentModel) { scene.remove(currentModel); currentModel = null; }
 
     currentModel = new THREE.Group();
-
-    // Create sample geometry
-    const geometries = [
+    const colors = [0xe8c87a, 0x7ac8e8, 0x6fcf97, 0xeb5757];
+    const geoms = [
         new THREE.BoxGeometry(2, 2, 2),
-        new THREE.SphereGeometry(1.5, 16, 16),
+        new THREE.SphereGeometry(1.2, 32, 32),
         new THREE.ConeGeometry(1, 3, 8),
         new THREE.CylinderGeometry(0.5, 1.5, 2, 8)
     ];
-
-    const colors = [0xff4444, 0x44ff44, 0x4444ff, 0xffff44];
-
-    geometries.forEach((geom, i) => {
-        const material = new THREE.MeshLambertMaterial({ color: colors[i] });
-        const mesh = new THREE.Mesh(geom, material);
-        mesh.position.x = (i - 1.5) * 4;
-        mesh.position.y = Math.sin(i) * 2;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        currentModel.add(mesh);
+    geoms.forEach((g, i) => {
+        const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: colors[i], roughness: 0.4, metalness: 0.1 }));
+        m.position.set((i - 1.5) * 4, 1 + Math.sin(i) * 1, 0);
+        m.castShadow = true;
+        currentModel.add(m);
     });
 
     scene.add(currentModel);
-    updateStatus('Sample model loaded', 'success');
-}
+    panTarget.set(0, 2, 0);
+    cameraDistance = 18;
+    resetView();
+    showInfo({ meshes: 4, materials: 4, format: 'SAMPLE' });
+    setStatus('Sample loaded', 'success');
+    hideInfo();   // no need for info on sample
+};
 
-function toggleWireframe() {
+// Wireframe / Animation / View
+window.toggleWireframe = function () {
     isWireframe = !isWireframe;
-    if (currentModel) {
-        currentModel.traverse((child) => {
-            if (child.isMesh && child.material) {
-                if (Array.isArray(child.material)) {
-                    child.material.forEach(mat => mat.wireframe = isWireframe);
-                } else {
-                    child.material.wireframe = isWireframe;
-                }
-            }
-        });
-    }
-}
+    document.getElementById('wireframeBtn').classList.toggle('active', isWireframe);
+    if (!currentModel) return;
+    currentModel.traverse(c => {
+        if (!c.isMesh) return;
+        (Array.isArray(c.material) ? c.material : [c.material])
+            .forEach(m => { if (m) m.wireframe = isWireframe; });
+    });
+};
 
-function toggleAnimation() {
+window.toggleAnimation = function () {
     isAnimating = !isAnimating;
-}
+    document.getElementById('animBtn').classList.toggle('active', isAnimating);
+};
 
-function resetView() {
-    cameraDistance = 15; // Good viewing distance
-    cameraTheta = 0;
-    cameraPhi = Math.PI / 4; // 45 degrees
+window.resetView = function () {
     targetTheta = 0;
     targetPhi = Math.PI / 4;
-    panTarget.set(0, 3, 0); // Focus at model center height
     updateCameraPosition();
-}
+};
 
+window.clearScene = function () {
+    if (currentModel) { scene.remove(currentModel); currentModel = null; }
+    fileMap = {}; mainFile = null; mainFileType = null;
+    rebuildFileList();
+    document.getElementById('model-info').classList.remove('visible');
+    setStatus('Scene cleared', '');
+};
+
+// Camera
 function updateCameraPosition() {
-    // Spherical coordinates to cartesian
     const x = cameraDistance * Math.sin(cameraPhi) * Math.cos(cameraTheta);
     const y = cameraDistance * Math.cos(cameraPhi);
     const z = cameraDistance * Math.sin(cameraPhi) * Math.sin(cameraTheta);
-
-    camera.position.set(x, y, z);
-    camera.position.add(panTarget);
+    camera.position.set(x + panTarget.x, y + panTarget.y, z + panTarget.z);
     camera.lookAt(panTarget);
 }
 
-function updateStatus(message, type) {
-    const statusEl = document.getElementById('status');
-    statusEl.textContent = message;
-    statusEl.className = `status ${type}`;
+function setupControls() {
+    const el = renderer.domElement;
+    el.addEventListener('mousedown', onMouseDown);
+    el.addEventListener('mousemove', onMouseMove);
+    el.addEventListener('mouseup', () => { mouseDown = false; });
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', () => { mouseDown = false; touchMode = null; lastDist = 0; });
 }
 
-// Mouse controls - Orbit Camera
-function onMouseDown(event) {
-    event.preventDefault();
-    mouseDown = true;
-    isPanning = event.shiftKey;
-    mouseX = event.clientX;
-    mouseY = event.clientY;
+function onMouseDown(e) {
+    mouseDown = true; isPanning = e.shiftKey;
+    mouseX = e.clientX; mouseY = e.clientY;
 }
 
-function onMouseMove(event) {
-    event.preventDefault();
+function onMouseMove(e) {
     if (!mouseDown) return;
-
-    const deltaX = event.clientX - mouseX;
-    const deltaY = event.clientY - mouseY;
-
+    const dx = e.clientX - mouseX, dy = e.clientY - mouseY;
     if (isPanning) {
-        // Pan camera (move target point)
-        const panSpeed = 0.005;
-        const right = new THREE.Vector3();
-        const up = new THREE.Vector3();
-
-        camera.getWorldDirection(new THREE.Vector3());
-        right.setFromMatrixColumn(camera.matrixWorld, 0);
-        up.setFromMatrixColumn(camera.matrixWorld, 1);
-
-        panTarget.add(right.multiplyScalar(-deltaX * panSpeed * cameraDistance * 0.1));
-        panTarget.add(up.multiplyScalar(deltaY * panSpeed * cameraDistance * 0.1));
+        const r = new THREE.Vector3(), u = new THREE.Vector3();
+        r.setFromMatrixColumn(camera.matrixWorld, 0);
+        u.setFromMatrixColumn(camera.matrixWorld, 1);
+        panTarget.addScaledVector(r, -dx * 0.003 * cameraDistance * 0.1);
+        panTarget.addScaledVector(u, dy * 0.003 * cameraDistance * 0.1);
+        panTarget.y = Math.max(0, panTarget.y); // never below ground
     } else {
-        // Orbit camera - fixed direction
-        targetTheta += deltaX * 0.005; // Reduced sensitivity
-        targetPhi = Math.max(0.1, Math.min(Math.PI - 0.1, targetPhi + deltaY * 0.005));
+        targetTheta += dx * 0.005;
+        // Lock above ground: phi max = just before horizontal (PI/2 - small buffer)
+        targetPhi = Math.max(0.05, Math.min(Math.PI / 2 - 0.02, targetPhi + dy * 0.005));
     }
-
-    mouseX = event.clientX;
-    mouseY = event.clientY;
+    mouseX = e.clientX; mouseY = e.clientY;
 }
 
-function onMouseUp(event) {
-    event.preventDefault();
-    mouseDown = false;
-    isPanning = false;
+function onWheel(e) {
+    e.preventDefault();
+    cameraDistance *= e.deltaY > 0 ? 1.1 : 0.9;
+    cameraDistance = Math.max(0.5, Math.min(500, cameraDistance));
 }
 
-function onMouseWheel(event) {
-    event.preventDefault();
-    const zoomSpeed = event.deltaY > 0 ? 1.1 : 0.9;
-    cameraDistance *= zoomSpeed;
-    cameraDistance = Math.max(3, Math.min(100, cameraDistance));
-}
-
-// Touch
-let lastTouchX = 0, lastTouchY = 0;
-let lastTouchDist = 0;
-let touchMode = null; // 'orbit' or 'pan'
-
-function getTouchDist(e) {
-    if (e.touches.length < 2) return 0;
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-}
+let touchMode = null, lastDist = 0, lastTX = 0, lastTY = 0;
 
 function onTouchStart(e) {
-    if (e.touches.length === 1) {
-        touchMode = e.shiftKey ? 'pan' : 'orbit';
-        lastTouchX = e.touches[0].clientX;
-        lastTouchY = e.touches[0].clientY;
-        mouseDown = true;
-        isPanning = false;
-    } else if (e.touches.length === 2) {
-        touchMode = 'zoom';
-        lastTouchDist = getTouchDist(e);
-        mouseDown = false;
-    }
     e.preventDefault();
+    if (e.touches.length === 1) {
+        touchMode = 'orbit'; mouseDown = true;
+        lastTX = e.touches[0].clientX; lastTY = e.touches[0].clientY;
+    } else if (e.touches.length === 2) {
+        touchMode = 'zoom'; mouseDown = false;
+        lastDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+    }
 }
 
 function onTouchMove(e) {
+    e.preventDefault();
     if (touchMode === 'orbit' && e.touches.length === 1 && mouseDown) {
-        const deltaX = e.touches[0].clientX - lastTouchX;
-        const deltaY = e.touches[0].clientY - lastTouchY;
-        targetTheta += deltaX * 0.008; // touch sensitivity
-        targetPhi = Math.max(0.1, Math.min(Math.PI - 0.1, targetPhi + deltaY * 0.008));
-        lastTouchX = e.touches[0].clientX;
-        lastTouchY = e.touches[0].clientY;
-    } else if (touchMode === 'pan' && e.touches.length === 1 && mouseDown) {
-        const deltaX = e.touches[0].clientX - lastTouchX;
-        const deltaY = e.touches[0].clientY - lastTouchY;
-        const panSpeed = 0.01;
-        const right = new THREE.Vector3();
-        const up = new THREE.Vector3();
-        camera.getWorldDirection(new THREE.Vector3());
-        right.setFromMatrixColumn(camera.matrixWorld, 0);
-        up.setFromMatrixColumn(camera.matrixWorld, 1);
-        panTarget.add(right.multiplyScalar(-deltaX * panSpeed * cameraDistance * 0.1));
-        panTarget.add(up.multiplyScalar(deltaY * panSpeed * cameraDistance * 0.1));
-        lastTouchX = e.touches[0].clientX;
-        lastTouchY = e.touches[0].clientY;
+        const dx = e.touches[0].clientX - lastTX, dy = e.touches[0].clientY - lastTY;
+        targetTheta += dx * 0.008;
+        targetPhi = Math.max(0.05, Math.min(Math.PI / 2 - 0.02, targetPhi + dy * 0.008));
+        lastTX = e.touches[0].clientX; lastTY = e.touches[0].clientY;
     } else if (touchMode === 'zoom' && e.touches.length === 2) {
-        const dist = getTouchDist(e);
-        if (lastTouchDist > 0) {
-            const zoomFactor = dist / lastTouchDist;
-            cameraDistance /= zoomFactor;
-            cameraDistance = Math.max(3, Math.min(100, cameraDistance));
-        }
-        lastTouchDist = dist;
+        const d = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        if (lastDist > 0) { cameraDistance /= d / lastDist; cameraDistance = Math.max(0.5, Math.min(500, cameraDistance)); }
+        lastDist = d;
     }
-    e.preventDefault();
 }
 
-function onTouchEnd(e) {
-    mouseDown = false;
-    touchMode = null;
-    lastTouchDist = 0;
-    e.preventDefault();
-}
-
+// Animate
 function animate() {
     requestAnimationFrame(animate);
-
-    // Smooth camera orbit with reduced bounce
-    cameraTheta += (targetTheta - cameraTheta) * 0.15; // Increased smoothing
-    cameraPhi += (targetPhi - cameraPhi) * 0.15;
-
+    cameraTheta += (targetTheta - cameraTheta) * 0.12;
+    cameraPhi += (targetPhi - cameraPhi) * 0.12;
     updateCameraPosition();
-
-    // Auto rotate model if enabled
-    if (currentModel && isAnimating) {
-        currentModel.rotation.y += 0.008; // Slightly slower
-    }
-
+    if (currentModel && isAnimating) currentModel.rotation.y += 0.006;
     renderer.render(scene, camera);
 }
 
-function onWindowResize() {
+window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// UI Helpers
+function setStatus(msg, type) {
+    const el = document.getElementById('status-bar');
+    el.textContent = msg;
+    el.className = type || '';
 }
 
-window.addEventListener('resize', onWindowResize);
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('loadModelBtn').addEventListener('click', loadModel);
-    document.getElementById('loadSampleBtn').addEventListener('click', loadSample);
-    document.getElementById('toggleWireframeBtn').addEventListener('click', toggleWireframe);
-    document.getElementById('toggleAnimationBtn').addEventListener('click', toggleAnimation);
-    document.getElementById('resetViewBtn').addEventListener('click', resetView);
-});
+function showProgress(pct) {
+    const wrap = document.getElementById('progress-wrap');
+    const bar = document.getElementById('progress-bar');
+    if (pct === null) { wrap.classList.remove('visible'); return; }
+    wrap.classList.add('visible');
+    bar.style.width = pct + '%';
+}
+
+function showLoadingOverlay(visible, text) {
+    const el = document.getElementById('loading-overlay');
+    el.classList.toggle('visible', visible);
+    if (text) document.getElementById('loading-text').textContent = text;
+}
+
+function showInfo(data) {
+    const el = document.getElementById('model-info');
+    const rows = document.getElementById('info-rows');
+    rows.innerHTML = Object.entries(data).map(([k, v]) =>
+        `<div class="info-row"><span class="info-key">${k}</span><span class="info-val">${v}</span></div>`
+    ).join('');
+    el.classList.add('visible');
+}
+
+function hideInfo() {
+    document.getElementById('model-info').classList.remove('visible');
+}
+
+window.togglePanel = function () {
+    document.body.classList.toggle('panel-hidden');
+};
+
 init();
